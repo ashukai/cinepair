@@ -239,7 +239,7 @@ async function loadSwipes(){
 // TMDB
 async function searchTMDB(query){
   if(!query.trim())return;
-  S.isSearching=true;S.searchResults=[];render();
+S.isSearching=true;S.searchResults=[];
   try{
     const r=await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=1`);
     const d=await r.json();
@@ -251,8 +251,11 @@ async function searchTMDB(query){
       plot:m.overview||'',genre:null,director:null,runtime:null
     }));
   }catch(e){S.searchResults=[];}
-  S.isSearching=false;render();
-}
+S.isSearching=false;
+const modal=document.querySelector('.modal');
+const scroll=modal?modal.scrollTop:0;
+render();
+if(modal){const m=document.querySelector('.modal');if(m)m.scrollTop=scroll;}}
 async function fetchMovieDetails(id){
   try{
     const r=await fetch(`${TMDB_BASE}/movie/${id}?api_key=${TMDB_KEY}&append_to_response=credits`);
