@@ -600,8 +600,7 @@ function modalAdd(){
         <button class="btn-sm" onclick="closeAdd()"><i class="ti ti-x"></i></button>
       </div>
       <div class="input-row" style="margin-bottom:1rem">
-        <input type="text" id="sInput" placeholder="e.g. Parasite, Dune…" value="${esc(S.searchQ)}" oninput="S.searchQ=this.value" onkeydown="if(event.key==='Enter')doSearch()">
-        <button class="btn btn-accent" style="flex-shrink:0" onclick="doSearch()">Search</button>
+<input type="text" id="sInput" placeholder="e.g. Parasite, Dune…" value="${esc(S.searchQ)}" oninput="S.searchQ=this.value" onchange="S.searchQ=this.value" onkeydown="if(event.key==='Enter')doSearch()">        <button class="btn btn-accent" style="flex-shrink:0" onclick="doSearch()">Search</button>
       </div>
       ${S.isSearching?`<div class="loading-row"><div class="spinner"></div> Searching…</div>`:''}
       ${S.searchResults.map(m=>`
@@ -676,8 +675,7 @@ window.openAdd=()=>{S.showAddModal=true;render();};
 window.closeAdd=()=>{S.showAddModal=false;S.searchResults=[];S.searchQ='';render();};
 window.openPartnerModal=()=>{S.showPartnerModal=true;render();};
 window.closePartnerModal=()=>{S.showPartnerModal=false;S.partnerSearchResult=null;S.partnerSearchMsg='';render();};
-window.doSearch=()=>searchTMDB(S.searchQ);
-window.doPartnerSearch=()=>searchPartner(S.partnerUsername);
+window.doSearch=()=>{const el=document.getElementById('sInput');if(el)S.searchQ=el.value;searchTMDB(S.searchQ);};window.doPartnerSearch=()=>searchPartner(S.partnerUsername);
 window.doSignOut=signOut;
 window.startSwipe=startSwipe;
 window.doSwipe=doSwipe;
