@@ -78,8 +78,9 @@ body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-fam
 .nav-btn.active{color:var(--accent-soft)}
 
 /* HEADER */
+/* HEADER */
 .header{
-  padding:1.25rem 1rem .5rem;
+  padding-top:max(1.5rem, calc(env(safe-area-inset-top) + 0.5rem));padding-right:1rem;padding-bottom:.75rem;padding-left:1rem;
   display:flex;align-items:center;justify-content:space-between;
 }
 .logo{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-.3px;color:var(--text)}
@@ -292,7 +293,7 @@ input::placeholder{color:var(--text3)}
 .auth-screen{
   position:absolute;inset:0;overflow-y:auto;
   display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:2rem 1.25rem;
+  justify-content:center;padding:max(2.5rem, calc(env(safe-area-inset-top) + 1rem)) 1.25rem 2rem;
   -webkit-overflow-scrolling:touch;
 }
 .auth-screen::-webkit-scrollbar{display:none}
