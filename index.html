@@ -15,7 +15,7 @@
 <style>
 :root{--bg:#0f0f11;--surface:#1a1a1f;--surface2:#22222a;--surface3:#2a2a35;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#9999aa;--text3:#55556a;--accent:#e8c87a;--accent-dim:rgba(232,200,122,0.12);--accent-border:rgba(232,200,122,0.28);--green:#5ecb8a;--green-dim:rgba(94,203,138,0.12);--red:#e87a7a;--red-dim:rgba(232,122,122,0.12);--blue:#7ab8e8;--blue-dim:rgba(122,184,232,0.12);--radius:14px;--radius-sm:9px;--nav-h:64px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px}
 #app{height:100%;display:flex;flex-direction:column}
 .screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:1rem 1rem calc(var(--nav-h) + 1.5rem);-webkit-overflow-scrolling:touch}
 .screen::-webkit-scrollbar{display:none}
@@ -29,21 +29,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .logo span{color:var(--accent)}
 .card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:.875rem}
 .card-title{font-size:17px;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.btn{padding:9px 18px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn{padding:9px 18px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{background:var(--surface2)}
 .btn:active{transform:scale(.97)}
 .btn-accent{background:var(--accent);color:#111;border-color:transparent}
 .btn-accent:hover{opacity:.9}
-.btn-sm{padding:5px 11px;font-size:12px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn-sm{padding:6px 12px;font-size:13px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
 .btn-sm:hover{background:var(--surface2);color:var(--text)}
 .btn-sm.on{background:var(--blue-dim);color:var(--blue);border-color:rgba(122,184,232,0.22)}
 .btn-sm.watched{background:var(--green-dim);color:var(--green);border-color:rgba(94,203,138,0.22)}
-.btn-danger{padding:5px 10px;font-size:12px;border-radius:var(--radius-sm);border:none;background:var(--red-dim);color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px}
-input,select{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;width:100%;transition:border-color .15s}
+.btn-danger{padding:6px 10px;font-size:13px;border-radius:var(--radius-sm);border:none;background:var(--red-dim);color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px}
+input,select{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;width:100%;transition:border-color .15s}
 input:focus,select:focus{border-color:var(--accent)}
 input::placeholder{color:var(--text3)}
 .input-row{display:flex;gap:8px}
-.input-row input{flex:1}
+.input-row input{flex:1;min-width:0}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 .tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap}
 .tag-amber{background:var(--accent-dim);color:var(--accent)}
@@ -72,13 +72,17 @@ input::placeholder{color:var(--text3)}
 .modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 1.25rem}
 .modal-title{font-size:17px;font-weight:500;margin-bottom:1rem}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
-.result-item{display:flex;gap:11px;align-items:center;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background .1s}
-.result-item:hover,.result-item:active{background:var(--surface2)}
+
+/* SEARCH RESULTS — fixed for mobile, no horizontal scroll */
+.result-item{display:flex;gap:10px;align-items:center;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background .1s;width:100%}
+.result-item:active{background:var(--surface2)}
 .result-poster{width:40px;height:58px;border-radius:6px;background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px}
 .result-poster img{width:100%;height:100%;object-fit:cover}
-.result-info{flex:1;min-width:0}
+.result-info{flex:1;min-width:0;overflow:hidden}
 .result-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.result-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.result-meta{font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result-add{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);font-size:18px}
+
 .swipe-poster{width:140px;height:210px;border-radius:var(--radius);background:var(--surface2);margin:0 auto 1.25rem;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:64px}
 .swipe-poster img{width:100%;height:100%;object-fit:cover}
 .progress-wrap{max-width:200px;margin:0 auto .5rem}
@@ -94,26 +98,30 @@ input::placeholder{color:var(--text3)}
 .partner-toggle button{flex:1;padding:9px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
 .partner-toggle button.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-border)}
 .match-banner{border:0.5px solid var(--accent-border);background:rgba(232,200,122,0.05)}
-.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:2rem 1.5rem;text-align:center}
+
+/* AUTH — bigger, more readable */
+.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:2rem 1.25rem;text-align:center}
 .auth-logo{font-family:'DM Serif Display',serif;font-size:44px;letter-spacing:-.5px;margin-bottom:.4rem}
 .auth-logo span{color:var(--accent)}
-.auth-tagline{color:var(--text2);font-size:14px;margin-bottom:2.5rem}
-.auth-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:400px;text-align:left}
+.auth-tagline{color:var(--text2);font-size:16px;margin-bottom:2rem}
+.auth-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:420px;text-align:left}
 .auth-tabs{display:flex;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border)}
-.auth-tab{flex:1;padding:10px;background:none;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.auth-tab{flex:1;padding:12px;background:none;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:16px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
 .auth-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.field{margin-bottom:1rem}
-.field label{font-size:13px;color:var(--text2);display:block;margin-bottom:5px}
-.error-msg{background:var(--red-dim);color:var(--red);border-radius:var(--radius-sm);padding:10px 13px;font-size:13px;margin-bottom:1rem}
-.success-msg{background:var(--green-dim);color:var(--green);border-radius:var(--radius-sm);padding:10px 13px;font-size:13px;margin-bottom:1rem}
+.field{margin-bottom:1.1rem}
+.field label{font-size:15px;color:var(--text2);display:block;margin-bottom:6px;font-weight:500}
+.field input{font-size:16px;padding:13px 14px}
+.auth-btn{width:100%;justify-content:center;font-size:16px;padding:13px 18px;margin-top:.25rem}
+.error-msg{background:var(--red-dim);color:var(--red);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;margin-bottom:1rem;line-height:1.5}
+.success-msg{background:var(--green-dim);color:var(--green);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;margin-bottom:1rem}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:1rem}
 .stat-card{background:var(--surface2);padding:.875rem;border-radius:var(--radius-sm);text-align:center}
 .stat-num{font-size:26px;font-weight:600}
 .stat-label{font-size:11px;color:var(--text2);margin-top:2px}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-row{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px;padding:8px 0}
-.toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);border-radius:20px;padding:9px 18px;font-size:13px;color:var(--text);z-index:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:14px;padding:10px 0}
+.toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);border-radius:20px;padding:10px 20px;font-size:14px;color:var(--text);z-index:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s}
 .toast.show{opacity:1}
 .avatar{border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--accent);flex-shrink:0}
 @media(min-width:600px){.modal{border-radius:var(--radius);max-width:480px;align-self:center;margin:auto 0}}
@@ -156,13 +164,27 @@ async function signUp(email,pass,username){
   S.authLoading=true;S.authError='';render();
   const{data:ex}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
   if(ex){S.authError='Username already taken';S.authLoading=false;render();return;}
-  const{data,error}=await sb.auth.signUp({email,password:pass});
+  const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{username}}});
   if(error){S.authError=error.message;S.authLoading=false;render();return;}
   if(data.user){
-    await sb.from('profiles').insert({id:data.user.id,username});
-    S.authSuccess='Account created! Check your email to confirm, then log in.';
-    S.authTab='login';
+    // insert profile immediately
+    await sb.from('profiles').upsert({id:data.user.id,username},{onConflict:'id'});
+    // auto sign in right away
+    const{data:sinData,error:sinErr}=await sb.auth.signInWithPassword({email,password:pass});
+    if(!sinErr&&sinData.user){
+      S.user=sinData.user;
+      S.profile={id:sinData.user.id,username};
+      await loadWatchlist();
+      await loadTogetherPlaylist();
+      S.authLoading=false;
+      render();
+      toast('Welcome to CinePair! 🎬');
+      return;
+    }
   }
+  // fallback if auto-login fails
+  S.authSuccess='Account created! Please sign in.';
+  S.authTab='login';
   S.authLoading=false;render();
 }
 async function signIn(email,pass){
@@ -172,6 +194,7 @@ async function signIn(email,pass){
   S.user=data.user;
   await loadProfile();
   S.authLoading=false;render();
+  toast('Welcome back! 🎬');
 }
 async function signOut(){
   await sb.auth.signOut();
@@ -247,17 +270,34 @@ async function fetchMovieDetails(id){
   }catch(e){return null;}
 }
 
-// ACTIONS
+// MOVIE ACTIONS
 async function addToWatchlist(movie){
   if(S.watchlist.find(w=>w.movie_id===movie.id)){toast('Already in your list');return;}
-  const full=await fetchMovieDetails(movie.id);
-  const m=full||movie;
-  await sb.from('movies').upsert({id:m.id,title:m.title,year:m.year,director:m.director,genre:m.genre,runtime:m.runtime,imdb_rating:m.imdb_rating,plot:m.plot,poster_path:m.poster_path},{onConflict:'id',ignoreDuplicates:true});
-  const{error}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
-  if(error){toast('Error adding movie');return;}
-  await loadWatchlist();
-  S.showAddModal=false;S.searchResults=[];S.searchQ='';
-  toast(`${m.title} added! 🎬`);render();
+  try{
+    // fetch full details first
+    const full=await fetchMovieDetails(movie.id);
+    const m=full||movie;
+    // upsert movie — ignore if already exists
+    const{error:me}=await sb.from('movies').upsert({
+      id:m.id,title:m.title,year:m.year,director:m.director,
+      genre:m.genre,runtime:m.runtime,imdb_rating:m.imdb_rating,
+      plot:m.plot,poster_path:m.poster_path
+    },{onConflict:'id'});
+    if(me){console.error('movie upsert error',me);}
+    // add to watchlist
+    const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
+    if(we){
+      console.error('watchlist insert error',we);
+      toast('Could not save — try again');
+      return;
+    }
+    await loadWatchlist();
+    S.showAddModal=false;S.searchResults=[];S.searchQ='';
+    toast(`${m.title} added! 🎬`);render();
+  }catch(e){
+    console.error('addToWatchlist error',e);
+    toast('Something went wrong — try again');
+  }
 }
 async function toggleWatched(movieId,watched){
   await sb.from('watchlist').update({watched:!watched}).eq('user_id',S.user.id).eq('movie_id',movieId);
@@ -305,8 +345,7 @@ function startSwipe(){
 }
 async function doSwipe(movieId,liked){
   await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});
-  S.mySwipes[movieId]=liked;
-  S.swipeIndex++;
+  S.mySwipes[movieId]=liked;S.swipeIndex++;
   if(liked&&S.partnerSwipes[movieId]===true){
     const m=S.togetherMovies.find(t=>t.movie_id===movieId);
     toast(`🎉 Match! You both want: ${m?.movie?.title||'this movie'}`);
@@ -327,12 +366,11 @@ function getMatches(){
   return S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true);
 }
 
-// RENDER HELPERS
+// RENDER
 function posterImg(path,w,h){
   if(path)return`<img src="${TMDB_IMG}${esc(path)}" alt="" loading="lazy" style="width:${w}px;height:${h}px;object-fit:cover">`;
   return'🎬';
 }
-
 function movieItemHTML(item,listType){
   const m=item.movie||item;
   const movieId=item.movie_id||m.id;
@@ -374,17 +412,17 @@ function screenAuth(){
       ${S.authError?`<div class="error-msg">${esc(S.authError)}</div>`:''}
       ${S.authSuccess?`<div class="success-msg">${esc(S.authSuccess)}</div>`:''}
       ${S.authTab==='login'?`
-        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com"></div>
-        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignIn()"></div>
-        <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="doSignIn()" ${S.authLoading?'disabled':''}>
-          ${S.authLoading?'<div class="spinner"></div> ':''} Sign in
+        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doSignIn()"></div>
+        <button class="btn btn-accent auth-btn" onclick="doSignIn()" ${S.authLoading?'disabled':''}>
+          ${S.authLoading?'<div class="spinner"></div>':''} Sign in
         </button>
       `:`
-        <div class="field"><label>Username</label><input type="text" id="aUser" placeholder="your_username" maxlength="20"></div>
-        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com"></div>
-        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter')doSignUp()"></div>
-        <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="doSignUp()" ${S.authLoading?'disabled':''}>
-          ${S.authLoading?'<div class="spinner"></div> ':''} Create account
+        <div class="field"><label>Username</label><input type="text" id="aUser" placeholder="your_username" maxlength="20" autocomplete="username"></div>
+        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="At least 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignUp()"></div>
+        <button class="btn btn-accent auth-btn" onclick="doSignUp()" ${S.authLoading?'disabled':''}>
+          ${S.authLoading?'<div class="spinner"></div>':''} Create account
         </button>
       `}
     </div>
@@ -422,7 +460,7 @@ function screenTogether(){
     ${!S.playlist?`
       <div class="card">
         <div class="card-title">Together playlist</div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Connect with a partner to create a shared movie pool for swiping.</p>
+        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">Connect with a partner to create a shared movie pool for swiping.</p>
         <button class="btn btn-accent" onclick="openPartnerModal()"><i class="ti ti-user-plus"></i> Connect with partner</button>
       </div>
     `:`
@@ -431,8 +469,8 @@ function screenTogether(){
           With <span style="color:var(--accent)">${esc(partnerName||'partner')}</span>
           <span style="font-size:13px;font-weight:400;color:var(--text2)">${S.togetherMovies.length} movies</span>
         </div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Add movies from your watchlist. This is your swipe pool.</p>
-        ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist using "+ Together"</p></div>`:S.togetherMovies.map(m=>movieItemHTML(m,'together')).join('')}
+        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Add movies from your watchlist using "+ Together".</p>
+        ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist</p></div>`:S.togetherMovies.map(m=>movieItemHTML(m,'together')).join('')}
       </div>
     `}`;
 }
@@ -457,9 +495,9 @@ function screenSwipe(){
       </div>
       ${S.swipeQueue.length===0?`
         <div style="text-align:center;padding:1rem 0">
-          <p style="font-size:13px;color:var(--text2);margin-bottom:1.25rem">Swipe right ❤️ to save, left ✕ to skip. Matches appear when you both like a movie!</p>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem">Swipe ❤️ to save, ✕ to skip. Matches show when you both like a movie!</p>
           ${S.togetherMovies.length===0?`<p style="color:var(--text3);font-size:13px">Add movies to Together first</p>`:`
-            <button class="btn btn-accent" onclick="startSwipe()"><i class="ti ti-player-play"></i> Start swiping (${myUnswiped.length} unswiped)</button>
+            <button class="btn btn-accent" onclick="startSwipe()"><i class="ti ti-player-play"></i> Start swiping (${myUnswiped.length} left)</button>
           `}
         </div>
       `:!S.partnerView?`
@@ -544,7 +582,7 @@ function screenProfile(){
           </div>
         </div>
       `:`
-        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">No partner connected yet.</p>
+        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">No partner connected yet.</p>
         <button class="btn btn-accent" onclick="openPartnerModal()"><i class="ti ti-user-plus"></i> Connect with partner</button>
       `}
     </div>
@@ -562,8 +600,8 @@ function modalAdd(){
         <button class="btn-sm" onclick="closeAdd()"><i class="ti ti-x"></i></button>
       </div>
       <div class="input-row" style="margin-bottom:1rem">
-        <input type="text" id="sInput" placeholder="e.g. Parasite, Dune, The Bear…" value="${esc(S.searchQ)}" oninput="S.searchQ=this.value" onkeydown="if(event.key==='Enter')doSearch()">
-        <button class="btn btn-accent" onclick="doSearch()">Search</button>
+        <input type="text" id="sInput" placeholder="e.g. Parasite, Dune…" value="${esc(S.searchQ)}" oninput="S.searchQ=this.value" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn btn-accent" style="flex-shrink:0" onclick="doSearch()">Search</button>
       </div>
       ${S.isSearching?`<div class="loading-row"><div class="spinner"></div> Searching…</div>`:''}
       ${S.searchResults.map(m=>`
@@ -571,9 +609,9 @@ function modalAdd(){
           <div class="result-poster">${posterImg(m.poster_path,40,58)}</div>
           <div class="result-info">
             <div class="result-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
-            <div class="result-meta">${m.imdb_rating?'★ '+m.imdb_rating+' · ':''}${esc((m.plot||'').slice(0,65))}${(m.plot||'').length>65?'…':''}</div>
+            <div class="result-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,50))}${(m.plot||'').length>50?'…':''}</div>
           </div>
-          <i class="ti ti-plus" style="color:var(--text3);font-size:18px;flex-shrink:0"></i>
+          <div class="result-add"><i class="ti ti-plus"></i></div>
         </div>`).join('')}
       ${!S.isSearching&&S.searchResults.length===0&&S.searchQ?`<p style="font-size:13px;color:var(--text3);padding:8px 0">No results — try a different title</p>`:''}
     </div>
@@ -588,10 +626,10 @@ function modalPartner(){
         <div class="modal-title">Connect with partner</div>
         <button class="btn-sm" onclick="closePartnerModal()"><i class="ti ti-x"></i></button>
       </div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Your partner needs a CinePair account. Search by their username.</p>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">Your partner needs a CinePair account. Search by their username.</p>
       <div class="input-row" style="margin-bottom:1rem">
         <input type="text" id="pInput" placeholder="their_username" value="${esc(S.partnerUsername)}" oninput="S.partnerUsername=this.value" onkeydown="if(event.key==='Enter')doPartnerSearch()">
-        <button class="btn btn-accent" onclick="doPartnerSearch()">Find</button>
+        <button class="btn btn-accent" style="flex-shrink:0" onclick="doPartnerSearch()">Find</button>
       </div>
       ${S.partnerSearchMsg?`<div class="error-msg">${esc(S.partnerSearchMsg)}</div>`:''}
       ${S.partnerSearchResult?`
@@ -670,11 +708,11 @@ window.doSignUp=()=>{
   if(session?.user){S.user=session.user;await loadProfile();}
   render();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session?.user){S.user=session.user;await loadProfile();render();}
+    if(event==='SIGNED_IN'&&session?.user&&!S.user){S.user=session.user;await loadProfile();render();}
     else if(event==='SIGNED_OUT'){S.user=null;S.profile=null;render();}
   });
 })();
 </script>
-<script>if("serviceWorker"in navigator){navigator.serviceWorker.register("/sw.js").catch(()=>{});}</script>
+<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
 </body>
 </html>
