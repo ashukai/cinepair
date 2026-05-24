@@ -6,125 +6,353 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CinePair">
-<meta name="theme-color" content="#0f0f11">
+<meta name="theme-color" content="#0a0a0c">
 <title>CinePair</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
-:root{--bg:#0f0f11;--surface:#1a1a1f;--surface2:#22222a;--surface3:#2a2a35;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--text:#f0f0f0;--text2:#9999aa;--text3:#55556a;--accent:#e8c87a;--accent-dim:rgba(232,200,122,0.12);--accent-border:rgba(232,200,122,0.28);--green:#5ecb8a;--green-dim:rgba(94,203,138,0.12);--red:#e87a7a;--red-dim:rgba(232,122,122,0.12);--blue:#7ab8e8;--blue-dim:rgba(122,184,232,0.12);--radius:14px;--radius-sm:9px;--nav-h:64px}
+:root{
+  --bg:#0a0a0c;
+  --surface:#141418;
+  --surface2:#1c1c22;
+  --surface3:#242430;
+  --border:rgba(255,255,255,0.06);
+  --border2:rgba(255,255,255,0.11);
+  --text:#efefef;
+  --text2:#888899;
+  --text3:#44445a;
+  --accent:#d4a843;
+  --accent-soft:#e8c87a;
+  --accent-dim:rgba(212,168,67,0.13);
+  --accent-border:rgba(212,168,67,0.25);
+  --green:#4db87a;
+  --green-dim:rgba(77,184,122,0.13);
+  --red:#c96060;
+  --red-dim:rgba(201,96,96,0.13);
+  --blue:#5a9fd4;
+  --blue-dim:rgba(90,159,212,0.13);
+  --radius:16px;
+  --radius-sm:10px;
+  --radius-xs:7px;
+  --nav-h:60px;
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px}
-#app{height:100%;display:flex;flex-direction:column}
-.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:1rem 1rem calc(var(--nav-h) + 1.5rem);-webkit-overflow-scrolling:touch}
+html{height:100%}
+body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+#app{height:100%;display:flex;flex-direction:column;position:relative}
+
+/* SCREEN */
+.screen{
+  position:absolute;top:0;left:0;right:0;
+  bottom:calc(var(--nav-h) + var(--safe-bottom));
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding:0 0 1.5rem;
+}
 .screen::-webkit-scrollbar{display:none}
-.nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--surface);border-top:0.5px solid var(--border);display:flex;z-index:200;padding-bottom:max(env(safe-area-inset-bottom),0px)}
-.nav-btn{flex:1;background:none;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:color .15s;padding:8px 4px}
-.nav-btn i{font-size:22px}
-.nav-btn span{font-size:10px;font-weight:500}
-.nav-btn.active{color:var(--accent)}
-.header{padding:1.25rem 0 .75rem;display:flex;align-items:center;justify-content:space-between}
-.logo{font-family:'DM Serif Display',serif;font-size:24px;letter-spacing:-.5px}
-.logo span{color:var(--accent)}
-.card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:.875rem}
-.card-title{font-size:17px;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.btn{padding:9px 18px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-.btn:hover{background:var(--surface2)}
-.btn:active{transform:scale(.97)}
-.btn-accent{background:var(--accent);color:#111;border-color:transparent}
-.btn-accent:hover{opacity:.9}
-.btn-sm{padding:6px 12px;font-size:13px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
-.btn-sm:hover{background:var(--surface2);color:var(--text)}
-.btn-sm.on{background:var(--blue-dim);color:var(--blue);border-color:rgba(122,184,232,0.22)}
-.btn-sm.watched{background:var(--green-dim);color:var(--green);border-color:rgba(94,203,138,0.22)}
-.btn-danger{padding:6px 10px;font-size:13px;border-radius:var(--radius-sm);border:none;background:var(--red-dim);color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px}
-input,select{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;width:100%;transition:border-color .15s}
-input:focus,select:focus{border-color:var(--accent)}
+.inner{padding:0 1rem}
+
+/* NAV */
+.nav{
+  position:absolute;bottom:0;left:0;right:0;
+  height:calc(var(--nav-h) + var(--safe-bottom));
+  background:var(--surface);
+  border-top:0.5px solid var(--border);
+  display:flex;align-items:flex-start;
+  padding-top:2px;
+  padding-bottom:var(--safe-bottom);
+  z-index:100;
+}
+.nav-btn{
+  flex:1;background:none;border:none;
+  color:var(--text3);font-family:'DM Sans',sans-serif;
+  cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;
+  padding:10px 4px 4px;transition:color .2s;
+}
+.nav-btn i{font-size:21px;line-height:1}
+.nav-btn span{font-size:10px;font-weight:500;letter-spacing:.3px}
+.nav-btn.active{color:var(--accent-soft)}
+
+/* HEADER */
+.header{
+  padding:1.25rem 1rem .5rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-.3px;color:var(--text)}
+.logo em{color:var(--accent-soft);font-style:normal}
+
+/* SECTION HEADER */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.75rem 1rem .5rem;
+}
+.section-title{font-size:13px;font-weight:500;color:var(--text3);letter-spacing:.5px;text-transform:uppercase}
+
+/* CARDS */
+.card{
+  background:var(--surface);
+  border:0.5px solid var(--border);
+  border-radius:var(--radius);
+  margin:0 1rem .75rem;
+  overflow:hidden;
+}
+.card-pad{padding:1.25rem}
+.card-title{font-size:16px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1rem}
+
+/* BUTTONS */
+.btn{
+  padding:10px 20px;border-radius:var(--radius-sm);
+  border:0.5px solid var(--border2);background:transparent;
+  color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:14px;font-weight:500;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:7px;
+  white-space:nowrap;
+}
+.btn:active{opacity:.75;transform:scale(.97)}
+.btn-gold{background:var(--accent);color:#0a0a0c;border-color:transparent;font-weight:600}
+.btn-gold:active{background:var(--accent-soft)}
+.btn-sm{
+  padding:6px 13px;font-size:12px;border-radius:var(--radius-xs);
+  border:0.5px solid var(--border);background:transparent;
+  color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.btn-sm:active{opacity:.7}
+.btn-sm.on{background:var(--blue-dim);color:var(--blue);border-color:rgba(90,159,212,.25)}
+.btn-sm.done{background:var(--green-dim);color:var(--green);border-color:rgba(77,184,122,.25)}
+.btn-del{
+  padding:6px 10px;font-size:13px;border-radius:var(--radius-xs);
+  border:none;background:transparent;color:var(--text3);
+  cursor:pointer;font-family:'DM Sans',sans-serif;
+  display:inline-flex;align-items:center;
+}
+.btn-del:active{color:var(--red)}
+.btn-icon{
+  width:40px;height:40px;border-radius:50%;border:none;
+  background:transparent;color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;transition:all .15s;flex-shrink:0;
+}
+.btn-icon:active{background:var(--surface2)}
+
+/* INPUTS */
+input{
+  background:var(--surface2);border:0.5px solid var(--border2);
+  border-radius:var(--radius-sm);padding:13px 15px;
+  color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:16px;outline:none;width:100%;transition:border-color .2s;
+}
+input:focus{border-color:var(--accent)}
 input::placeholder{color:var(--text3)}
-.input-row{display:flex;gap:8px}
-.input-row input{flex:1;min-width:0}
-.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
-.tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap}
-.tag-amber{background:var(--accent-dim);color:var(--accent)}
+
+/* TAGS */
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.tag{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500;white-space:nowrap;letter-spacing:.2px}
+.tag-gold{background:var(--accent-dim);color:var(--accent-soft)}
 .tag-green{background:var(--green-dim);color:var(--green)}
-.tag-gray{background:var(--surface2);color:var(--text3)}
+.tag-gray{background:var(--surface3);color:var(--text3)}
 .tag-blue{background:var(--blue-dim);color:var(--blue)}
-.movie-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:0.5px solid var(--border)}
+
+/* MOVIE ITEM */
+.movie-item{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:12px 1rem;border-bottom:0.5px solid var(--border);
+}
 .movie-item:last-child{border-bottom:none}
-.poster{border-radius:var(--radius-sm);background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:26px}
-.poster img{width:100%;height:100%;object-fit:cover}
-.movie-info{flex:1;min-width:0}
-.movie-title{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.movie-year{font-weight:400;color:var(--text2);font-size:13px}
-.movie-meta{font-size:12px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.movie-plot{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.movie-actions{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
-.empty{text-align:center;padding:2.5rem 1rem;color:var(--text3)}
-.empty i{font-size:40px;display:block;margin-bottom:10px;opacity:.5}
-.empty p{font-size:14px}
-.tabs{display:flex;gap:6px;margin-bottom:1rem;overflow-x:auto;padding-bottom:2px}
-.tabs::-webkit-scrollbar{display:none}
-.tab{padding:6px 14px;font-size:13px;border-radius:20px;border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all .15s}
-.tab.active{background:var(--text);color:var(--bg);border-color:transparent;font-weight:500}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;justify-content:center;z-index:300}
-.modal{background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;padding:1.5rem;width:100%;max-height:88vh;overflow-y:auto;padding-bottom:max(1.5rem,env(safe-area-inset-bottom))}
-.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 1.25rem}
-.modal-title{font-size:17px;font-weight:500;margin-bottom:1rem}
-.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.m-poster{
+  width:46px;height:68px;border-radius:8px;
+  background:var(--surface2);flex-shrink:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+}
+.m-poster img{width:100%;height:100%;object-fit:cover}
+.m-info{flex:1;min-width:0;padding-top:1px}
+.m-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.m-year{font-weight:400;color:var(--text2);font-size:13px}
+.m-sub{font-size:12px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-plot{font-size:12px;color:var(--text2);margin-top:5px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.m-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding-top:1px}
 
-/* SEARCH RESULTS — fixed for mobile, no horizontal scroll */
-.result-item{display:flex;gap:10px;align-items:center;padding:10px;border-radius:var(--radius-sm);cursor:pointer;transition:background .1s;width:100%}
+/* EMPTY */
+.empty{text-align:center;padding:3rem 1rem 2rem;color:var(--text3)}
+.empty i{font-size:36px;display:block;margin-bottom:10px;opacity:.35}
+.empty p{font-size:14px;line-height:1.5}
+
+/* FILTER TABS */
+.filter-tabs{display:flex;gap:6px;padding:.5rem 1rem .75rem;overflow-x:auto}
+.filter-tabs::-webkit-scrollbar{display:none}
+.ftab{
+  padding:6px 14px;font-size:13px;border-radius:20px;
+  border:0.5px solid var(--border);background:transparent;
+  color:var(--text2);cursor:pointer;white-space:nowrap;
+  font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.ftab.active{background:var(--text);color:var(--bg);border-color:transparent;font-weight:500}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.8);
+  z-index:200;display:flex;align-items:flex-end;
+}
+.modal-sheet{
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  width:100%;
+  max-height:90vh;
+  display:flex;flex-direction:column;
+  padding-bottom:max(1.5rem, var(--safe-bottom));
+}
+.modal-drag{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 0}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 1rem .75rem;flex-shrink:0;
+}
+.modal-title{font-size:17px;font-weight:500}
+.modal-close{
+  width:32px;height:32px;border-radius:50%;border:none;
+  background:var(--surface2);color:var(--text2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.modal-body{overflow-y:auto;flex:1;padding:0 1rem}
+.modal-body::-webkit-scrollbar{display:none}
+
+/* SEARCH */
+.search-wrap{display:flex;gap:8px;margin-bottom:1rem;flex-shrink:0;padding:0 1rem}
+.search-wrap input{flex:1;min-width:0}
+.search-wrap .btn-gold{flex-shrink:0;padding:10px 18px}
+
+/* RESULT ITEM */
+.result-item{
+  display:flex;gap:11px;align-items:center;
+  padding:10px;border-radius:var(--radius-sm);
+  cursor:pointer;transition:background .1s;
+  margin-bottom:2px;
+}
 .result-item:active{background:var(--surface2)}
-.result-poster{width:40px;height:58px;border-radius:6px;background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px}
-.result-poster img{width:100%;height:100%;object-fit:cover}
-.result-info{flex:1;min-width:0;overflow:hidden}
-.result-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.result-meta{font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.result-add{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);font-size:18px}
+.r-poster{
+  width:38px;height:56px;border-radius:7px;
+  background:var(--surface2);flex-shrink:0;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+}
+.r-poster img{width:100%;height:100%;object-fit:cover}
+.r-info{flex:1;min-width:0}
+.r-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-meta{font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r-add{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--accent-dim);border:0.5px solid var(--accent-border);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:var(--accent-soft);font-size:17px;
+}
 
-.swipe-poster{width:140px;height:210px;border-radius:var(--radius);background:var(--surface2);margin:0 auto 1.25rem;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:64px}
+/* SWIPE */
+.swipe-card-inner{
+  background:var(--surface2);border-radius:var(--radius-sm);
+  padding:1.5rem 1rem;text-align:center;
+}
+.swipe-poster{
+  width:130px;height:195px;border-radius:var(--radius);
+  background:var(--surface3);margin:0 auto 1.25rem;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:56px;
+}
 .swipe-poster img{width:100%;height:100%;object-fit:cover}
-.progress-wrap{max-width:200px;margin:0 auto .5rem}
-.progress-label{font-size:12px;color:var(--text3);margin-bottom:5px;text-align:center}
-.progress-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
-.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
-.swipe-btns{display:flex;justify-content:center;gap:2.5rem;margin-top:1.25rem}
-.btn-swipe{width:68px;height:68px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:transform .12s}
-.btn-swipe:active{transform:scale(.9)}
-.btn-nope{background:var(--red-dim);color:var(--red)}
-.btn-yep{background:var(--green-dim);color:var(--green)}
-.partner-toggle{display:flex;gap:6px;margin-bottom:1rem}
-.partner-toggle button{flex:1;padding:9px;border-radius:var(--radius-sm);border:0.5px solid var(--border);background:transparent;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
-.partner-toggle button.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-border)}
-.match-banner{border:0.5px solid var(--accent-border);background:rgba(232,200,122,0.05)}
+.swipe-title{font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3}
+.swipe-meta{font-size:13px;color:var(--text2);margin-bottom:.5rem}
+.swipe-plot{font-size:13px;color:var(--text2);line-height:1.6;max-width:300px;margin:0 auto .875rem}
+.prog-wrap{max-width:180px;margin:0 auto .75rem}
+.prog-lbl{font-size:12px;color:var(--text3);margin-bottom:5px}
+.prog-bar{height:2px;background:var(--surface3);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.swipe-btns{display:flex;justify-content:center;gap:3rem;margin-top:1rem}
+.swipe-btn{
+  width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  transition:transform .1s;
+}
+.swipe-btn:active{transform:scale(.88)}
+.s-nope{background:var(--red-dim);color:var(--red);border:0.5px solid rgba(201,96,96,.2)}
+.s-yep{background:var(--green-dim);color:var(--green);border:0.5px solid rgba(77,184,122,.2)}
 
-/* AUTH — bigger, more readable */
-.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:2rem 1.25rem;text-align:center}
-.auth-logo{font-family:'DM Serif Display',serif;font-size:44px;letter-spacing:-.5px;margin-bottom:.4rem}
-.auth-logo span{color:var(--accent)}
-.auth-tagline{color:var(--text2);font-size:16px;margin-bottom:2rem}
-.auth-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:420px;text-align:left}
+/* PARTNER TOGGLE */
+.p-toggle{display:flex;gap:6px;margin-bottom:1rem}
+.p-toggle button{
+  flex:1;padding:9px;border-radius:var(--radius-sm);
+  border:0.5px solid var(--border);background:transparent;
+  color:var(--text2);font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;
+}
+.p-toggle button.active{background:var(--accent-dim);color:var(--accent-soft);border-color:var(--accent-border)}
+
+/* AUTH */
+.auth-screen{
+  position:absolute;inset:0;overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:2rem 1.25rem;
+  -webkit-overflow-scrolling:touch;
+}
+.auth-screen::-webkit-scrollbar{display:none}
+.auth-logo{font-family:'DM Serif Display',serif;font-size:48px;letter-spacing:-.5px;margin-bottom:.3rem}
+.auth-logo em{color:var(--accent-soft);font-style:normal}
+.auth-tag{color:var(--text3);font-size:15px;margin-bottom:2.5rem;font-weight:300;letter-spacing:.3px}
+.auth-card{
+  background:var(--surface);border:0.5px solid var(--border);
+  border-radius:var(--radius);padding:1.5rem;
+  width:100%;max-width:400px;
+}
 .auth-tabs{display:flex;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border)}
-.auth-tab{flex:1;padding:12px;background:none;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:16px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
-.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.field{margin-bottom:1.1rem}
-.field label{font-size:15px;color:var(--text2);display:block;margin-bottom:6px;font-weight:500}
-.field input{font-size:16px;padding:13px 14px}
-.auth-btn{width:100%;justify-content:center;font-size:16px;padding:13px 18px;margin-top:.25rem}
-.error-msg{background:var(--red-dim);color:var(--red);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;margin-bottom:1rem;line-height:1.5}
-.success-msg{background:var(--green-dim);color:var(--green);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;margin-bottom:1rem}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:1rem}
-.stat-card{background:var(--surface2);padding:.875rem;border-radius:var(--radius-sm);text-align:center}
-.stat-num{font-size:26px;font-weight:600}
-.stat-label{font-size:11px;color:var(--text2);margin-top:2px}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.atab{
+  flex:1;padding:11px;background:none;border:none;
+  color:var(--text3);font-family:'DM Sans',sans-serif;
+  font-size:15px;font-weight:500;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;
+}
+.atab.active{color:var(--accent-soft);border-bottom-color:var(--accent-soft)}
+.afield{margin-bottom:1.1rem}
+.afield label{font-size:14px;color:var(--text2);display:block;margin-bottom:7px;font-weight:500}
+.afield input{font-size:16px}
+.err{background:var(--red-dim);color:var(--red);border-radius:var(--radius-xs);padding:11px 13px;font-size:13px;margin-bottom:1rem;line-height:1.5}
+.suc{background:var(--green-dim);color:var(--green);border-radius:var(--radius-xs);padding:11px 13px;font-size:13px;margin-bottom:1rem}
+
+/* STATS */
+.stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:1rem}
+.stat-box{background:var(--surface2);padding:.875rem .5rem;border-radius:var(--radius-sm);text-align:center}
+.stat-n{font-size:24px;font-weight:600;line-height:1}
+.stat-l{font-size:11px;color:var(--text2);margin-top:4px;letter-spacing:.3px}
+
+/* AVATAR */
+.avatar{
+  border-radius:50%;background:var(--accent-dim);
+  border:0.5px solid var(--accent-border);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:600;color:var(--accent-soft);flex-shrink:0;
+}
+
+/* MATCH CARD */
+.match-card{border:0.5px solid var(--accent-border);background:rgba(212,168,67,0.04)}
+
+/* SPINNER / LOADING */
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-row{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:14px;padding:10px 0}
-.toast{position:fixed;bottom:calc(var(--nav-h) + 14px);left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);border-radius:20px;padding:10px 20px;font-size:14px;color:var(--text);z-index:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s}
+.loading-row{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px;padding:12px 0}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  left:50%;transform:translateX(-50%);
+  background:var(--surface3);border:0.5px solid var(--border2);
+  border-radius:20px;padding:10px 20px;font-size:13px;
+  color:var(--text);z-index:500;white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity .22s;
+}
 .toast.show{opacity:1}
-.avatar{border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--accent);flex-shrink:0}
-@media(min-width:600px){.modal{border-radius:var(--radius);max-width:480px;align-self:center;margin:auto 0}}
+
+/* DIVIDER */
+.divider{height:0.5px;background:var(--border);margin:0 1rem}
 </style>
 </head>
 <body>
@@ -142,63 +370,50 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let S={
   user:null,profile:null,tab:'my',
   watchlist:[],togetherMovies:[],playlist:null,
-  swipeQueue:[],swipeIndex:0,partnerView:false,
+  swipeQueue:[],swipeIdx:0,partnerView:false,
   mySwipes:{},partnerSwipes:{},
-  filterWatched:'all',
-  showAddModal:false,showPartnerModal:false,
+  filter:'all',
+  modal:null, // 'add' | 'partner' | null
   searchQ:'',searchResults:[],isSearching:false,
-  authTab:'login',authLoading:false,authError:'',authSuccess:'',
-  partnerUsername:'',partnerSearchResult:null,partnerSearchMsg:'',
+  authTab:'login',authLoading:false,authErr:'',authOk:'',
+  partnerQ:'',partnerResult:null,partnerMsg:'',
 };
 
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),2800);
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escJ(o){return JSON.stringify(o).replace(/"/g,'&quot;');}
 
 // AUTH
 async function signUp(email,pass,username){
-  S.authLoading=true;S.authError='';render();
+  S.authLoading=true;S.authErr='';render();
   const{data:ex}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
-  if(ex){S.authError='Username already taken';S.authLoading=false;render();return;}
-  const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{username}}});
-  if(error){S.authError=error.message;S.authLoading=false;render();return;}
+  if(ex){S.authErr='Username already taken';S.authLoading=false;render();return;}
+  const{data,error}=await sb.auth.signUp({email,password:pass});
+  if(error){S.authErr=error.message;S.authLoading=false;render();return;}
   if(data.user){
-    // insert profile immediately
     await sb.from('profiles').upsert({id:data.user.id,username},{onConflict:'id'});
-    // auto sign in right away
-    const{data:sinData,error:sinErr}=await sb.auth.signInWithPassword({email,password:pass});
-    if(!sinErr&&sinData.user){
-      S.user=sinData.user;
-      S.profile={id:sinData.user.id,username};
-      await loadWatchlist();
-      await loadTogetherPlaylist();
-      S.authLoading=false;
-      render();
-      toast('Welcome to CinePair! 🎬');
-      return;
+    const{data:sd,error:se}=await sb.auth.signInWithPassword({email,password:pass});
+    if(!se&&sd.user){
+      S.user=sd.user;S.profile={id:sd.user.id,username};
+      await loadWatchlist();await loadTogetherPlaylist();
+      S.authLoading=false;render();toast('Welcome to CinePair! 🎬');return;
     }
   }
-  // fallback if auto-login fails
-  S.authSuccess='Account created! Please sign in.';
-  S.authTab='login';
-  S.authLoading=false;render();
+  S.authOk='Account created! Please sign in.';S.authTab='login';S.authLoading=false;render();
 }
 async function signIn(email,pass){
-  S.authLoading=true;S.authError='';render();
+  S.authLoading=true;S.authErr='';render();
   const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){S.authError=error.message;S.authLoading=false;render();return;}
-  S.user=data.user;
-  await loadProfile();
-  S.authLoading=false;render();
-  toast('Welcome back! 🎬');
+  if(error){S.authErr=error.message;S.authLoading=false;render();return;}
+  S.user=data.user;await loadProfile();S.authLoading=false;render();toast('Welcome back! 🎬');
 }
 async function signOut(){
   await sb.auth.signOut();
-  Object.assign(S,{user:null,profile:null,watchlist:[],togetherMovies:[],playlist:null,mySwipes:{},partnerSwipes:{},swipeQueue:[],swipeIndex:0});
+  Object.assign(S,{user:null,profile:null,watchlist:[],togetherMovies:[],playlist:null,mySwipes:{},partnerSwipes:{},swipeQueue:[],swipeIdx:0});
   render();
 }
 
@@ -237,13 +452,19 @@ async function loadSwipes(){
 }
 
 // TMDB
-async function searchTMDB(query){
-  if(!query.trim())return;
-S.isSearching=true;S.searchResults=[];
+async function doSearch(){
+  const el=document.getElementById('sInput');
+  const q=el?el.value.trim():S.searchQ.trim();
+  if(!q){toast('Type a movie name first');return;}
+  S.searchQ=q;
+  S.isSearching=true;S.searchResults=[];
+  // re-render just the results area without closing modal
+  const resultsEl=document.getElementById('searchResults');
+  if(resultsEl)resultsEl.innerHTML=`<div class="loading-row"><div class="spinner"></div> Searching…</div>`;
   try{
-    const r=await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=1`);
+    const r=await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US&page=1`);
     const d=await r.json();
-    S.searchResults=(d.results||[]).slice(0,6).map(m=>({
+    S.searchResults=(d.results||[]).slice(0,7).map(m=>({
       id:String(m.id),title:m.title,
       year:m.release_date?m.release_date.slice(0,4):'?',
       poster_path:m.poster_path||null,
@@ -251,11 +472,25 @@ S.isSearching=true;S.searchResults=[];
       plot:m.overview||'',genre:null,director:null,runtime:null
     }));
   }catch(e){S.searchResults=[];}
-S.isSearching=false;
-const modal=document.querySelector('.modal');
-const scroll=modal?modal.scrollTop:0;
-render();
-if(modal){const m=document.querySelector('.modal');if(m)m.scrollTop=scroll;}}
+  S.isSearching=false;
+  const el2=document.getElementById('searchResults');
+  if(el2){
+    if(S.searchResults.length===0){
+      el2.innerHTML=`<p style="font-size:13px;color:var(--text3);padding:10px 0">No results found — try another title</p>`;
+    } else {
+      el2.innerHTML=S.searchResults.map(m=>`
+        <div class="result-item" onclick="addToWatchlist(${escJ(m)})">
+          <div class="r-poster">${m.poster_path?`<img src="${TMDB_IMG}${esc(m.poster_path)}" loading="lazy">`:'🎬'}</div>
+          <div class="r-info">
+            <div class="r-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
+            <div class="r-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,55))}${(m.plot||'').length>55?'…':''}</div>
+          </div>
+          <div class="r-add"><i class="ti ti-plus"></i></div>
+        </div>`).join('');
+    }
+  }
+}
+
 async function fetchMovieDetails(id){
   try{
     const r=await fetch(`${TMDB_BASE}/movie/${id}?api_key=${TMDB_KEY}&append_to_response=credits`);
@@ -273,34 +508,24 @@ async function fetchMovieDetails(id){
   }catch(e){return null;}
 }
 
-// MOVIE ACTIONS
+// ACTIONS
 async function addToWatchlist(movie){
   if(S.watchlist.find(w=>w.movie_id===movie.id)){toast('Already in your list');return;}
+  toast('Adding…');
   try{
-    // fetch full details first
     const full=await fetchMovieDetails(movie.id);
     const m=full||movie;
-    // upsert movie — ignore if already exists
-    const{error:me}=await sb.from('movies').upsert({
+    await sb.from('movies').upsert({
       id:m.id,title:m.title,year:m.year,director:m.director,
       genre:m.genre,runtime:m.runtime,imdb_rating:m.imdb_rating,
       plot:m.plot,poster_path:m.poster_path
     },{onConflict:'id'});
-    if(me){console.error('movie upsert error',me);}
-    // add to watchlist
     const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
-    if(we){
-      console.error('watchlist insert error',we);
-      toast('Could not save — try again');
-      return;
-    }
+    if(we){toast('Could not save — try again');return;}
     await loadWatchlist();
-    S.showAddModal=false;S.searchResults=[];S.searchQ='';
-    toast(`${m.title} added! 🎬`);render();
-  }catch(e){
-    console.error('addToWatchlist error',e);
-    toast('Something went wrong — try again');
-  }
+    S.modal=null;S.searchResults=[];S.searchQ='';
+    render();toast(`${m.title} added! 🎬`);
+  }catch(e){toast('Something went wrong');}
 }
 async function toggleWatched(movieId,watched){
   await sb.from('watchlist').update({watched:!watched}).eq('user_id',S.user.id).eq('movie_id',movieId);
@@ -324,34 +549,34 @@ async function removeFromTogether(movieId){
 }
 
 // PARTNER
-async function searchPartner(username){
-  if(!username.trim())return;
-  const{data}=await sb.from('profiles').select('*').eq('username',username).neq('id',S.user.id).maybeSingle();
-  if(!data){S.partnerSearchMsg='User not found';S.partnerSearchResult=null;}
-  else{S.partnerSearchResult=data;S.partnerSearchMsg='';}
+async function doPartnerSearch(){
+  const el=document.getElementById('pInput');
+  const q=el?el.value.trim():S.partnerQ.trim();
+  if(!q)return;
+  const{data}=await sb.from('profiles').select('*').eq('username',q).neq('id',S.user.id).maybeSingle();
+  if(!data){S.partnerMsg='User not found';S.partnerResult=null;}
+  else{S.partnerResult=data;S.partnerMsg='';}
   render();
 }
 async function createPlaylistWith(partnerId){
   if(S.playlist){toast('You already have a Together playlist');return;}
   const{data,error}=await sb.from('together_playlists').insert({owner_id:S.user.id,partner_id:partnerId,name:'Our List'}).select().single();
   if(error){toast('Error creating playlist');return;}
-  S.playlist=data;S.showPartnerModal=false;S.partnerSearchResult=null;S.partnerUsername='';
-  await loadTogetherPlaylist();
-  toast('Together playlist created! 🎉');render();
+  S.playlist=data;S.modal=null;S.partnerResult=null;S.partnerQ='';
+  await loadTogetherPlaylist();toast('Together playlist created! 🎉');render();
 }
 
 // SWIPE
 function startSwipe(){
   const pool=S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===undefined);
-  S.swipeQueue=[...pool].sort(()=>Math.random()-.5);
-  S.swipeIndex=0;render();
+  S.swipeQueue=[...pool].sort(()=>Math.random()-.5);S.swipeIdx=0;render();
 }
 async function doSwipe(movieId,liked){
   await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});
-  S.mySwipes[movieId]=liked;S.swipeIndex++;
+  S.mySwipes[movieId]=liked;S.swipeIdx++;
   if(liked&&S.partnerSwipes[movieId]===true){
     const m=S.togetherMovies.find(t=>t.movie_id===movieId);
-    toast(`🎉 Match! You both want: ${m?.movie?.title||'this movie'}`);
+    toast(`🎉 Match! ${m?.movie?.title||'Movie'}`);
   }
   render();
 }
@@ -361,7 +586,7 @@ async function doPartnerSwipe(movieId,liked){
   S.partnerSwipes[movieId]=liked;
   if(liked&&S.mySwipes[movieId]===true){
     const m=S.togetherMovies.find(t=>t.movie_id===movieId);
-    toast(`🎉 Match! You both want: ${m?.movie?.title||'this movie'}`);
+    toast(`🎉 Match! ${m?.movie?.title||'Movie'}`);
   }
   render();
 }
@@ -369,287 +594,283 @@ function getMatches(){
   return S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true);
 }
 
-// RENDER
-function posterImg(path,w,h){
+// RENDER HELPERS
+function pImg(path,w,h){
   if(path)return`<img src="${TMDB_IMG}${esc(path)}" alt="" loading="lazy" style="width:${w}px;height:${h}px;object-fit:cover">`;
   return'🎬';
 }
-function movieItemHTML(item,listType){
+function movieRow(item,listType){
   const m=item.movie||item;
-  const movieId=item.movie_id||m.id;
-  const inTogether=!!(S.playlist&&S.togetherMovies.find(t=>t.movie_id===movieId));
+  const mid=item.movie_id||m.id;
+  const inT=!!(S.playlist&&S.togetherMovies.find(t=>t.movie_id===mid));
   const watched=item.watched||false;
   return`<div class="movie-item">
-    <div class="poster" style="width:48px;height:70px">${posterImg(m.poster_path,48,70)}</div>
-    <div class="movie-info">
-      <div class="movie-title">${esc(m.title)} <span class="movie-year">(${esc(m.year)})</span></div>
-      <div class="movie-meta">${esc(m.director||'')}${m.runtime?' · '+esc(m.runtime):''}</div>
+    <div class="m-poster" style="width:46px;height:68px">${pImg(m.poster_path,46,68)}</div>
+    <div class="m-info">
+      <div class="m-title">${esc(m.title)} <span class="m-year">(${esc(m.year)})</span></div>
+      <div class="m-sub">${esc(m.director||'')}${m.runtime?' · '+esc(m.runtime):''}</div>
       <div class="tags">
         ${m.genre?`<span class="tag tag-gray">${esc(m.genre)}</span>`:''}
-        ${m.imdb_rating?`<span class="tag tag-amber">★ ${m.imdb_rating}</span>`:''}
-        ${watched?`<span class="tag tag-green">✓ Watched</span>`:`<span class="tag tag-gray">Unwatched</span>`}
-        ${listType==='my'&&inTogether?`<span class="tag tag-blue">Together</span>`:''}
+        ${m.imdb_rating?`<span class="tag tag-gold">★ ${m.imdb_rating}</span>`:''}
+        ${watched?`<span class="tag tag-green">✓ Watched</span>`:''}
+        ${listType==='my'&&inT?`<span class="tag tag-blue">Together</span>`:''}
       </div>
-      <div class="movie-plot">${esc(m.plot||'')}</div>
+      <div class="m-plot">${esc(m.plot||'')}</div>
     </div>
-    <div class="movie-actions">
+    <div class="m-actions">
       ${listType==='my'?`
-        <button class="btn-sm ${watched?'watched':''}" onclick="toggleWatched('${movieId}',${watched})">${watched?'✓ Seen':'Mark seen'}</button>
-        <button class="btn-sm ${inTogether?'on':''}" onclick="${inTogether?`removeFromTogether('${movieId}')`:`addToTogether(${escJ(item)})`}">${inTogether?'In Together':'+ Together'}</button>
-        <button class="btn-danger" onclick="removeFromWatchlist('${movieId}')"><i class="ti ti-trash"></i></button>
-      `:`<button class="btn-danger" onclick="removeFromTogether('${movieId}')"><i class="ti ti-trash"></i></button>`}
+        <button class="btn-sm ${watched?'done':''}" onclick="toggleWatched('${mid}',${watched})">${watched?'✓ Seen':'Mark seen'}</button>
+        <button class="btn-sm ${inT?'on':''}" onclick="${inT?`removeFromTogether('${mid}')`:`addToTogether(${escJ(item)})`}">${inT?'In Together':'+ Together'}</button>
+        <button class="btn-del" onclick="removeFromWatchlist('${mid}')"><i class="ti ti-trash" style="font-size:16px"></i></button>
+      `:`<button class="btn-del" onclick="removeFromTogether('${mid}')"><i class="ti ti-trash" style="font-size:16px"></i></button>`}
     </div>
   </div>`;
 }
 
 // SCREENS
-function screenAuth(){
-  return`<div class="screen"><div class="auth-wrap">
-    <div class="auth-logo">Cine<span>Pair</span></div>
-    <div class="auth-tagline">Your movie list. Your perfect match.</div>
+function renderAuth(){
+  return`<div class="auth-screen">
+    <div class="auth-logo">Cine<em>Pair</em></div>
+    <div class="auth-tag">Your movies. Your perfect match.</div>
     <div class="auth-card">
       <div class="auth-tabs">
-        <button class="auth-tab ${S.authTab==='login'?'active':''}" onclick="setAuthTab('login')">Sign in</button>
-        <button class="auth-tab ${S.authTab==='signup'?'active':''}" onclick="setAuthTab('signup')">Create account</button>
+        <button class="atab ${S.authTab==='login'?'active':''}" onclick="setAuthTab('login')">Sign in</button>
+        <button class="atab ${S.authTab==='signup'?'active':''}" onclick="setAuthTab('signup')">Create account</button>
       </div>
-      ${S.authError?`<div class="error-msg">${esc(S.authError)}</div>`:''}
-      ${S.authSuccess?`<div class="success-msg">${esc(S.authSuccess)}</div>`:''}
+      ${S.authErr?`<div class="err">${esc(S.authErr)}</div>`:''}
+      ${S.authOk?`<div class="suc">${esc(S.authOk)}</div>`:''}
       ${S.authTab==='login'?`
-        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
-        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doSignIn()"></div>
-        <button class="btn btn-accent auth-btn" onclick="doSignIn()" ${S.authLoading?'disabled':''}>
+        <div class="afield"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="afield"><label>Password</label><input type="password" id="aPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doSignIn()"></div>
+        <button class="btn btn-gold" style="width:100%;justify-content:center;margin-top:.25rem;font-size:15px;padding:13px" onclick="doSignIn()" ${S.authLoading?'disabled':''}>
           ${S.authLoading?'<div class="spinner"></div>':''} Sign in
         </button>
       `:`
-        <div class="field"><label>Username</label><input type="text" id="aUser" placeholder="your_username" maxlength="20" autocomplete="username"></div>
-        <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
-        <div class="field"><label>Password</label><input type="password" id="aPass" placeholder="At least 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignUp()"></div>
-        <button class="btn btn-accent auth-btn" onclick="doSignUp()" ${S.authLoading?'disabled':''}>
+        <div class="afield"><label>Username</label><input type="text" id="aUser" placeholder="your_username" maxlength="20" autocomplete="username"></div>
+        <div class="afield"><label>Email</label><input type="email" id="aEmail" placeholder="you@email.com" autocomplete="email"></div>
+        <div class="afield"><label>Password</label><input type="password" id="aPass" placeholder="At least 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignUp()"></div>
+        <button class="btn btn-gold" style="width:100%;justify-content:center;margin-top:.25rem;font-size:15px;padding:13px" onclick="doSignUp()" ${S.authLoading?'disabled':''}>
           ${S.authLoading?'<div class="spinner"></div>':''} Create account
         </button>
       `}
     </div>
-  </div></div>`;
+  </div>`;
 }
 
-function screenMy(){
+function renderMy(){
   const all=S.watchlist;
-  const filt=S.filterWatched==='all'?all:S.filterWatched==='watched'?all.filter(w=>w.watched):all.filter(w=>!w.watched);
+  const filt=S.filter==='all'?all:S.filter==='watched'?all.filter(w=>w.watched):all.filter(w=>!w.watched);
   return`
     <div class="header">
-      <div class="logo">Cine<span>Pair</span></div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="avatar" style="width:34px;height:34px;font-size:13px">${(S.profile?.username||'?')[0].toUpperCase()}</div>
-        <button class="btn-sm" onclick="doSignOut()"><i class="ti ti-logout"></i></button>
+      <div class="logo">Cine<em>Pair</em></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" style="width:32px;height:32px;font-size:12px">${(S.profile?.username||'?')[0].toUpperCase()}</div>
+        <button class="btn-icon" onclick="doSignOut()" title="Sign out"><i class="ti ti-logout" style="font-size:18px"></i></button>
       </div>
     </div>
+    <div class="section-head">
+      <span class="section-title">My watchlist</span>
+      <button class="btn btn-gold" style="padding:8px 16px;font-size:13px" onclick="openModal('add')"><i class="ti ti-plus"></i> Add movie</button>
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab ${S.filter==='all'?'active':''}" onclick="setFilter('all')">All (${all.length})</button>
+      <button class="ftab ${S.filter==='unwatched'?'active':''}" onclick="setFilter('unwatched')">To watch (${all.filter(w=>!w.watched).length})</button>
+      <button class="ftab ${S.filter==='watched'?'active':''}" onclick="setFilter('watched')">Watched (${all.filter(w=>w.watched).length})</button>
+    </div>
     <div class="card">
-      <div class="card-title">My watchlist
-        <button class="btn btn-accent" onclick="openAdd()"><i class="ti ti-plus"></i> Add</button>
-      </div>
-      <div class="tabs">
-        <button class="tab ${S.filterWatched==='all'?'active':''}" onclick="setFilter('all')">All (${all.length})</button>
-        <button class="tab ${S.filterWatched==='unwatched'?'active':''}" onclick="setFilter('unwatched')">To watch (${all.filter(w=>!w.watched).length})</button>
-        <button class="tab ${S.filterWatched==='watched'?'active':''}" onclick="setFilter('watched')">Watched (${all.filter(w=>w.watched).length})</button>
-      </div>
-      ${filt.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>${all.length===0?'Search for a movie to get started':'Nothing here'}</p></div>`:filt.map(w=>movieItemHTML(w,'my')).join('')}
+      ${filt.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>${all.length===0?'Search for a movie to get started':'Nothing matches this filter'}</p></div>`:filt.map(w=>movieRow(w,'my')).join('')}
     </div>`;
 }
 
-function screenTogether(){
-  const partnerName=S.playlist?(S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username):null;
+function renderTogether(){
+  const pName=S.playlist?(S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username):null;
   return`
-    <div class="header"><div class="logo">Cine<span>Pair</span></div></div>
+    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
     ${!S.playlist?`
-      <div class="card">
-        <div class="card-title">Together playlist</div>
-        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">Connect with a partner to create a shared movie pool for swiping.</p>
-        <button class="btn btn-accent" onclick="openPartnerModal()"><i class="ti ti-user-plus"></i> Connect with partner</button>
+      <div class="section-head"><span class="section-title">Together playlist</span></div>
+      <div class="card card-pad">
+        <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Connect with your partner to create a shared movie pool. Both of you swipe through it to find matches.</p>
+        <button class="btn btn-gold" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect with partner</button>
       </div>
     `:`
+      <div class="section-head">
+        <span class="section-title">With <span style="color:var(--accent-soft)">${esc(pName||'partner')}</span></span>
+        <span style="font-size:12px;color:var(--text3)">${S.togetherMovies.length} movies</span>
+      </div>
       <div class="card">
-        <div class="card-title">
-          With <span style="color:var(--accent)">${esc(partnerName||'partner')}</span>
-          <span style="font-size:13px;font-weight:400;color:var(--text2)">${S.togetherMovies.length} movies</span>
-        </div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Add movies from your watchlist using "+ Together".</p>
-        ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist</p></div>`:S.togetherMovies.map(m=>movieItemHTML(m,'together')).join('')}
+        ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist<br>using "+ Together"</p></div>`:S.togetherMovies.map(m=>movieRow(m,'together')).join('')}
       </div>
     `}`;
 }
 
-function screenSwipe(){
+function renderSwipe(){
   if(!S.playlist)return`
-    <div class="header"><div class="logo">Cine<span>Pair</span></div></div>
-    <div class="empty" style="margin-top:4rem"><i class="ti ti-cards"></i><p>Connect with a partner first<br><small style="font-size:12px;margin-top:6px;display:block">Go to the Together tab</small></p></div>`;
-  const partnerName=S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username;
+    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="empty" style="margin-top:5rem"><i class="ti ti-cards"></i><p>Connect with a partner first<br><span style="font-size:12px;margin-top:6px;display:block;color:var(--text3)">Go to the Together tab</span></p></div>`;
+  const pName=S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username;
   const matches=getMatches();
   const partnerUnswiped=S.togetherMovies.filter(m=>S.partnerSwipes[m.movie_id]===undefined);
-  const current=S.swipeQueue[S.swipeIndex];
-  const myDone=S.swipeQueue.length>0&&S.swipeIndex>=S.swipeQueue.length;
   const myUnswiped=S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===undefined);
+  const cur=S.swipeQueue[S.swipeIdx];
+  const myDone=S.swipeQueue.length>0&&S.swipeIdx>=S.swipeQueue.length;
   return`
-    <div class="header"><div class="logo">Cine<span>Pair</span></div></div>
-    <div class="card">
-      <div class="card-title">Swipe to decide</div>
-      <div class="partner-toggle">
+    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="section-head"><span class="section-title">Decide what to watch</span></div>
+    <div class="card card-pad">
+      <div class="p-toggle">
         <button class="${!S.partnerView?'active':''}" onclick="setPartnerView(false)">👤 My swipes</button>
-        <button class="${S.partnerView?'active':''}" onclick="setPartnerView(true)">👥 ${esc(partnerName||'Partner')}</button>
+        <button class="${S.partnerView?'active':''}" onclick="setPartnerView(true)">👥 ${esc(pName||'Partner')}</button>
       </div>
       ${S.swipeQueue.length===0?`
-        <div style="text-align:center;padding:1rem 0">
-          <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem">Swipe ❤️ to save, ✕ to skip. Matches show when you both like a movie!</p>
+        <div style="text-align:center;padding:.5rem 0 1rem">
+          <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Swipe ❤️ to keep, ✕ to skip.<br>Movies you both like become matches!</p>
           ${S.togetherMovies.length===0?`<p style="color:var(--text3);font-size:13px">Add movies to Together first</p>`:`
-            <button class="btn btn-accent" onclick="startSwipe()"><i class="ti ti-player-play"></i> Start swiping (${myUnswiped.length} left)</button>
+            <button class="btn btn-gold" onclick="startSwipe()"><i class="ti ti-player-play"></i> Start swiping (${myUnswiped.length} left)</button>
           `}
         </div>
       `:!S.partnerView?`
-        ${!myDone&&current?`
-          <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:1.25rem;text-align:center">
-            <div class="swipe-poster">${posterImg(current.movie?.poster_path,140,210)}</div>
-            <div style="font-size:19px;font-weight:500;margin-bottom:4px">${esc(current.movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(current.movie?.year||'')})</span></div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${esc(current.movie?.genre||'')}${current.movie?.runtime?' · '+esc(current.movie.runtime):''}${current.movie?.imdb_rating?' · ★ '+current.movie.imdb_rating:''}</div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:300px;margin:0 auto .75rem">${esc(current.movie?.plot||'')}</div>
-            <div class="progress-wrap">
-              <div class="progress-label">${S.swipeIndex+1} of ${S.swipeQueue.length}</div>
-              <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((S.swipeIndex/S.swipeQueue.length)*100)}%"></div></div>
+        ${!myDone&&cur?`
+          <div class="swipe-card-inner">
+            <div class="swipe-poster">${pImg(cur.movie?.poster_path,130,195)}</div>
+            <div class="swipe-title">${esc(cur.movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
+            <div class="swipe-meta">${esc(cur.movie?.genre||'')}${cur.movie?.runtime?' · '+esc(cur.movie.runtime):''}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+            <div class="swipe-plot">${esc(cur.movie?.plot||'')}</div>
+            <div class="prog-wrap">
+              <div class="prog-lbl">${S.swipeIdx+1} of ${S.swipeQueue.length}</div>
+              <div class="prog-bar"><div class="prog-fill" style="width:${Math.round((S.swipeIdx/S.swipeQueue.length)*100)}%"></div></div>
             </div>
             <div class="swipe-btns">
-              <button class="btn-swipe btn-nope" onclick="doSwipe('${current.movie_id}',false)"><i class="ti ti-x"></i></button>
-              <button class="btn-swipe btn-yep" onclick="doSwipe('${current.movie_id}',true)"><i class="ti ti-heart"></i></button>
+              <button class="swipe-btn s-nope" onclick="doSwipe('${cur.movie_id}',false)"><i class="ti ti-x"></i></button>
+              <button class="swipe-btn s-yep" onclick="doSwipe('${cur.movie_id}',true)"><i class="ti ti-heart"></i></button>
             </div>
           </div>
         `:`
-          <div class="empty"><i class="ti ti-check" style="color:var(--green)"></i><p>You've swiped everything!<br><small style="font-size:12px;margin-top:4px;display:block">Ask ${esc(partnerName||'partner')} to swipe too</small></p></div>
-          <div style="text-align:center;margin-top:1rem"><button class="btn" onclick="startSwipe()"><i class="ti ti-refresh"></i> Reshuffle</button></div>
+          <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>You've swiped everything!<br><span style="font-size:12px;color:var(--text3)">Ask ${esc(pName||'partner')} to swipe too</span></p></div>
+          <div style="text-align:center"><button class="btn" onclick="startSwipe()"><i class="ti ti-refresh"></i> Reshuffle</button></div>
         `}
       `:`
-        ${partnerUnswiped.length===0?`<div class="empty"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(partnerName||'Partner')} is all done!</p></div>`:`
-          <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">Pass the device to ${esc(partnerName||'partner')} 📱</p>
-          <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:1.25rem;text-align:center">
-            <div class="swipe-poster">${posterImg(partnerUnswiped[0].movie?.poster_path,140,210)}</div>
-            <div style="font-size:19px;font-weight:500;margin-bottom:4px">${esc(partnerUnswiped[0].movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(partnerUnswiped[0].movie?.year||'')})</span></div>
-            <div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${esc(partnerUnswiped[0].movie?.genre||'')}${partnerUnswiped[0].movie?.imdb_rating?' · ★ '+partnerUnswiped[0].movie.imdb_rating:''}</div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.6;max-width:300px;margin:0 auto .75rem">${esc(partnerUnswiped[0].movie?.plot||'')}</div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:1rem">${partnerUnswiped.length} remaining</div>
+        ${partnerUnswiped.length===0?`<div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(pName||'Partner')} is all done!</p></div>`:`
+          <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">Pass the device to ${esc(pName||'partner')} 📱</p>
+          <div class="swipe-card-inner">
+            <div class="swipe-poster">${pImg(partnerUnswiped[0].movie?.poster_path,130,195)}</div>
+            <div class="swipe-title">${esc(partnerUnswiped[0].movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(partnerUnswiped[0].movie?.year||'')})</span></div>
+            <div class="swipe-meta">${esc(partnerUnswiped[0].movie?.genre||'')}${partnerUnswiped[0].movie?.imdb_rating?' · ★ '+partnerUnswiped[0].movie.imdb_rating:''}</div>
+            <div class="swipe-plot">${esc(partnerUnswiped[0].movie?.plot||'')}</div>
+            <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">${partnerUnswiped.length} remaining</p>
             <div class="swipe-btns">
-              <button class="btn-swipe btn-nope" onclick="doPartnerSwipe('${partnerUnswiped[0].movie_id}',false)"><i class="ti ti-x"></i></button>
-              <button class="btn-swipe btn-yep" onclick="doPartnerSwipe('${partnerUnswiped[0].movie_id}',true)"><i class="ti ti-heart"></i></button>
+              <button class="swipe-btn s-nope" onclick="doPartnerSwipe('${partnerUnswiped[0].movie_id}',false)"><i class="ti ti-x"></i></button>
+              <button class="swipe-btn s-yep" onclick="doPartnerSwipe('${partnerUnswiped[0].movie_id}',true)"><i class="ti ti-heart"></i></button>
             </div>
           </div>
         `}
       `}
     </div>
     ${matches.length>0?`
-      <div class="card match-banner">
-        <div class="card-title" style="color:var(--accent)"><i class="ti ti-heart-handshake"></i> Matches <span style="font-size:13px;font-weight:400;background:var(--accent-dim);padding:2px 9px;border-radius:20px">${matches.length}</span></div>
+      <div class="section-head"><span class="section-title" style="color:var(--accent-soft)">🎉 Matches</span><span style="font-size:12px;color:var(--text3)">${matches.length}</span></div>
+      <div class="card match-card">
         ${matches.map(m=>`
           <div class="movie-item">
-            <div class="poster" style="width:48px;height:70px">${posterImg(m.movie?.poster_path,48,70)}</div>
-            <div class="movie-info">
-              <div class="movie-title">${esc(m.movie?.title||'')} <span class="movie-year">(${esc(m.movie?.year||'')})</span></div>
-              <div class="movie-meta">${esc(m.movie?.director||'')}</div>
-              <div class="tags"><span class="tag tag-green">🎉 You both want this!</span></div>
+            <div class="m-poster" style="width:46px;height:68px">${pImg(m.movie?.poster_path,46,68)}</div>
+            <div class="m-info">
+              <div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div>
+              <div class="m-sub">${esc(m.movie?.director||'')}</div>
+              <div class="tags"><span class="tag tag-green">You both want this!</span></div>
             </div>
           </div>`).join('')}
       </div>
     `:''}`;
 }
 
-function screenProfile(){
-  const partnerName=S.playlist?(S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username):null;
+function renderProfile(){
+  const pName=S.playlist?(S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username):null;
   return`
-    <div class="header"><div class="logo">Cine<span>Pair</span></div></div>
-    <div class="card">
+    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="section-head"><span class="section-title">Profile</span></div>
+    <div class="card card-pad">
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.25rem">
-        <div class="avatar" style="width:52px;height:52px;font-size:20px">${(S.profile?.username||'?')[0].toUpperCase()}</div>
+        <div class="avatar" style="width:50px;height:50px;font-size:19px">${(S.profile?.username||'?')[0].toUpperCase()}</div>
         <div>
-          <div style="font-size:18px;font-weight:500">@${esc(S.profile?.username||'')}</div>
-          <div style="font-size:13px;color:var(--text2)">${esc(S.user?.email||'')}</div>
+          <div style="font-size:17px;font-weight:500">@${esc(S.profile?.username||'')}</div>
+          <div style="font-size:13px;color:var(--text3);margin-top:2px">${esc(S.user?.email||'')}</div>
         </div>
       </div>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-num">${S.watchlist.length}</div><div class="stat-label">Saved</div></div>
-        <div class="stat-card"><div class="stat-num">${S.watchlist.filter(w=>w.watched).length}</div><div class="stat-label">Watched</div></div>
-        <div class="stat-card"><div class="stat-num">${getMatches().length}</div><div class="stat-label">Matches</div></div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-n">${S.watchlist.length}</div><div class="stat-l">Saved</div></div>
+        <div class="stat-box"><div class="stat-n">${S.watchlist.filter(w=>w.watched).length}</div><div class="stat-l">Watched</div></div>
+        <div class="stat-box"><div class="stat-n">${getMatches().length}</div><div class="stat-l">Matches</div></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">Partner</div>
+    <div class="section-head"><span class="section-title">Partner</span></div>
+    <div class="card card-pad">
       ${S.playlist?`
         <div style="display:flex;align-items:center;gap:12px">
-          <div class="avatar" style="width:38px;height:38px;font-size:15px">${(partnerName||'?')[0].toUpperCase()}</div>
+          <div class="avatar" style="width:38px;height:38px;font-size:14px">${(pName||'?')[0].toUpperCase()}</div>
           <div>
-            <div style="font-weight:500">@${esc(partnerName||'')}</div>
-            <div style="font-size:12px;color:var(--text2)">${S.togetherMovies.length} movies in together playlist</div>
+            <div style="font-weight:500">@${esc(pName||'')}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">${S.togetherMovies.length} movies in together playlist</div>
           </div>
         </div>
       `:`
         <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">No partner connected yet.</p>
-        <button class="btn btn-accent" onclick="openPartnerModal()"><i class="ti ti-user-plus"></i> Connect with partner</button>
+        <button class="btn btn-gold" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect with partner</button>
       `}
     </div>
-    <div style="padding-bottom:1rem">
+    <div style="padding:0 1rem 1rem">
       <button class="btn" style="width:100%;justify-content:center" onclick="doSignOut()"><i class="ti ti-logout"></i> Sign out</button>
     </div>`;
 }
 
-function modalAdd(){
-  return`<div class="modal-bg" onclick="if(event.target===this)closeAdd()">
-    <div class="modal">
-      <div class="modal-handle"></div>
-      <div class="modal-header">
+function renderAddModal(){
+  return`<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-drag"></div>
+      <div class="modal-head">
         <div class="modal-title">Search movies</div>
-        <button class="btn-sm" onclick="closeAdd()"><i class="ti ti-x"></i></button>
+        <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
       </div>
-      <div class="input-row" style="margin-bottom:1rem">
-<input type="text" id="sInput" placeholder="e.g. Parasite, Dune…" value="${esc(S.searchQ)}" oninput="S.searchQ=this.value" onchange="S.searchQ=this.value" onkeydown="if(event.key==='Enter')doSearch()">        <button class="btn btn-accent" style="flex-shrink:0" onclick="doSearch()">Search</button>
+      <div class="search-wrap">
+        <input type="text" id="sInput" placeholder="e.g. Parasite, Dune, Inception…" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn btn-gold" onclick="doSearch()">Search</button>
       </div>
-      ${S.isSearching?`<div class="loading-row"><div class="spinner"></div> Searching…</div>`:''}
-      ${S.searchResults.map(m=>`
-        <div class="result-item" onclick="addToWatchlist(${escJ(m)})">
-          <div class="result-poster">${posterImg(m.poster_path,40,58)}</div>
-          <div class="result-info">
-            <div class="result-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
-            <div class="result-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,50))}${(m.plot||'').length>50?'…':''}</div>
-          </div>
-          <div class="result-add"><i class="ti ti-plus"></i></div>
-        </div>`).join('')}
-      ${!S.isSearching&&S.searchResults.length===0&&S.searchQ?`<p style="font-size:13px;color:var(--text3);padding:8px 0">No results — try a different title</p>`:''}
+      <div class="modal-body" id="searchResults">
+        <p style="font-size:13px;color:var(--text3);padding:8px 0">Type a movie title above and tap Search</p>
+      </div>
     </div>
   </div>`;
 }
 
-function modalPartner(){
-  return`<div class="modal-bg" onclick="if(event.target===this)closePartnerModal()">
-    <div class="modal">
-      <div class="modal-handle"></div>
-      <div class="modal-header">
+function renderPartnerModal(){
+  return`<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-drag"></div>
+      <div class="modal-head">
         <div class="modal-title">Connect with partner</div>
-        <button class="btn-sm" onclick="closePartnerModal()"><i class="ti ti-x"></i></button>
+        <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
       </div>
-      <p style="font-size:14px;color:var(--text2);margin-bottom:1rem">Your partner needs a CinePair account. Search by their username.</p>
-      <div class="input-row" style="margin-bottom:1rem">
-        <input type="text" id="pInput" placeholder="their_username" value="${esc(S.partnerUsername)}" oninput="S.partnerUsername=this.value" onkeydown="if(event.key==='Enter')doPartnerSearch()">
-        <button class="btn btn-accent" style="flex-shrink:0" onclick="doPartnerSearch()">Find</button>
-      </div>
-      ${S.partnerSearchMsg?`<div class="error-msg">${esc(S.partnerSearchMsg)}</div>`:''}
-      ${S.partnerSearchResult?`
-        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);padding:12px;border-radius:var(--radius-sm);margin-bottom:1rem">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="avatar" style="width:36px;height:36px;font-size:14px">${S.partnerSearchResult.username[0].toUpperCase()}</div>
-            <div style="font-weight:500">@${esc(S.partnerSearchResult.username)}</div>
-          </div>
-          <button class="btn btn-accent" onclick="createPlaylistWith('${S.partnerSearchResult.id}')">Connect</button>
+      <div class="modal-body">
+        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem;line-height:1.6">Your partner needs a CinePair account. Search by their username.</p>
+        <div style="display:flex;gap:8px;margin-bottom:1rem">
+          <input type="text" id="pInput" placeholder="their_username" value="${esc(S.partnerQ)}" oninput="S.partnerQ=this.value" autocomplete="off" onkeydown="if(event.key==='Enter')doPartnerSearch()" style="flex:1;min-width:0">
+          <button class="btn btn-gold" style="flex-shrink:0" onclick="doPartnerSearch()">Find</button>
         </div>
-      `:''}
+        ${S.partnerMsg?`<div class="err">${esc(S.partnerMsg)}</div>`:''}
+        ${S.partnerResult?`
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);padding:13px;border-radius:var(--radius-sm)">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="avatar" style="width:36px;height:36px;font-size:14px">${S.partnerResult.username[0].toUpperCase()}</div>
+              <div style="font-weight:500">@${esc(S.partnerResult.username)}</div>
+            </div>
+            <button class="btn btn-gold" style="padding:8px 16px;font-size:13px" onclick="createPlaylistWith('${S.partnerResult.id}')">Connect</button>
+          </div>
+        `:''}
+      </div>
     </div>
   </div>`;
 }
 
 function render(){
   const app=document.getElementById('app');
-  if(!S.user){app.innerHTML=screenAuth();return;}
+  if(!S.user){app.innerHTML=renderAuth();return;}
   const tabs=[
     {id:'my',icon:'ti-list',label:'My list'},
     {id:'together',icon:'ti-users',label:'Together'},
@@ -657,28 +878,28 @@ function render(){
     {id:'profile',icon:'ti-user',label:'Profile'}
   ];
   let content='';
-  if(S.tab==='my')content=screenMy();
-  else if(S.tab==='together')content=screenTogether();
-  else if(S.tab==='swipe')content=screenSwipe();
-  else content=screenProfile();
+  if(S.tab==='my')content=renderMy();
+  else if(S.tab==='together')content=renderTogether();
+  else if(S.tab==='swipe')content=renderSwipe();
+  else content=renderProfile();
   const nav=`<nav class="nav">${tabs.map(t=>`<button class="nav-btn ${S.tab===t.id?'active':''}" onclick="setTab('${t.id}')"><i class="ti ${t.icon}"></i><span>${t.label}</span></button>`).join('')}</nav>`;
-  let modals='';
-  if(S.showAddModal)modals+=modalAdd();
-  if(S.showPartnerModal)modals+=modalPartner();
-  app.innerHTML=`<div class="screen">${content}</div>${nav}${modals}`;
-  if(S.showAddModal)setTimeout(()=>{document.getElementById('sInput')?.focus();},60);
-  if(S.showPartnerModal)setTimeout(()=>{document.getElementById('pInput')?.focus();},60);
+  let modal='';
+  if(S.modal==='add')modal=renderAddModal();
+  else if(S.modal==='partner')modal=renderPartnerModal();
+  app.innerHTML=`<div class="screen"><div class="inner">${content}</div></div>${nav}${modal}`;
+  if(S.modal==='add')setTimeout(()=>{document.getElementById('sInput')?.focus();},80);
+  if(S.modal==='partner')setTimeout(()=>{document.getElementById('pInput')?.focus();},80);
 }
 
+// GLOBALS
 window.setTab=t=>{S.tab=t;render();};
-window.setFilter=f=>{S.filterWatched=f;render();};
-window.setAuthTab=t=>{S.authTab=t;S.authError='';S.authSuccess='';render();};
+window.setFilter=f=>{S.filter=f;render();};
+window.setAuthTab=t=>{S.authTab=t;S.authErr='';S.authOk='';render();};
 window.setPartnerView=v=>{S.partnerView=v;render();};
-window.openAdd=()=>{S.showAddModal=true;render();};
-window.closeAdd=()=>{S.showAddModal=false;S.searchResults=[];S.searchQ='';render();};
-window.openPartnerModal=()=>{S.showPartnerModal=true;render();};
-window.closePartnerModal=()=>{S.showPartnerModal=false;S.partnerSearchResult=null;S.partnerSearchMsg='';render();};
-window.doSearch=()=>{const el=document.getElementById('sInput');if(el)S.searchQ=el.value;searchTMDB(S.searchQ);};window.doPartnerSearch=()=>searchPartner(S.partnerUsername);
+window.openModal=m=>{S.modal=m;render();};
+window.closeModal=()=>{S.modal=null;S.searchResults=[];S.searchQ='';render();};
+window.doSearch=doSearch;
+window.doPartnerSearch=doPartnerSearch;
 window.doSignOut=signOut;
 window.startSwipe=startSwipe;
 window.doSwipe=doSwipe;
@@ -692,15 +913,15 @@ window.createPlaylistWith=createPlaylistWith;
 window.doSignIn=()=>{
   const email=document.getElementById('aEmail')?.value;
   const pass=document.getElementById('aPass')?.value;
-  if(!email||!pass){S.authError='Please fill all fields';render();return;}
+  if(!email||!pass){S.authErr='Please fill all fields';render();return;}
   signIn(email,pass);
 };
 window.doSignUp=()=>{
   const user=document.getElementById('aUser')?.value?.trim();
   const email=document.getElementById('aEmail')?.value;
   const pass=document.getElementById('aPass')?.value;
-  if(!user||!email||!pass){S.authError='Please fill all fields';render();return;}
-  if(user.length<3){S.authError='Username must be at least 3 characters';render();return;}
+  if(!user||!email||!pass){S.authErr='Please fill all fields';render();return;}
+  if(user.length<3){S.authErr='Username must be at least 3 characters';render();return;}
   signUp(email,pass,user);
 };
 
