@@ -422,53 +422,55 @@ function getMatches(){
   return p.filter(m=>S.mySwipes[m.movie_id]===true&&S.pSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
 }
 
-// POINTER-BASED SWIPE (works in Safari)
-function attachSwipe(){
-  const card=document.getElementById('SC');
+// SWIPE - works in Safari and Chrome, home screen and browser
+function initCard(cardId, labelYId, labelNId, onSwipe){
+  const card=document.getElementById(cardId);
   if(!card||card._pi)return;
   card._pi=true;
-  const ly=document.getElementById('SLY');
-  const ln=document.getElementById('SLN');
+  const ly=document.getElementById(labelYId);
+  const ln=document.getElementById(labelNId);
   const mid=card.dataset.mid;
-  let sx=0,dx=0,down=false;
+  let sx=0,dx=0,active=false;
 
-  card.addEventListener('pointerdown',function(e){
-    down=true;sx=e.clientX;dx=0;
-    card.setPointerCapture(e.pointerId);
-    card.style.transition='none';
-    e.preventDefault();
-  });
-  card.addEventListener('pointermove',function(e){
-    if(!down)return;
-    dx=e.clientX-sx;
+  function paint(){
     card.style.transform='translateX('+dx+'px) rotate('+(dx*0.06)+'deg)';
     var p=Math.min(Math.abs(dx)/100,1);
-    if(dx>15){
-      card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(p*0.6)+')';
-      if(ly)ly.style.opacity=Math.min(1,(dx-15)/55)+'';
-      if(ln)ln.style.opacity='0';
-    }else if(dx<-15){
-      card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(p*0.6)+')';
-      if(ln)ln.style.opacity=Math.min(1,(-dx-15)/55)+'';
-      if(ly)ly.style.opacity='0';
-    }else{
-      card.style.boxShadow='';
-      if(ly)ly.style.opacity='0';
-      if(ln)ln.style.opacity='0';
-    }
-  });
-  card.addEventListener('pointerup',function(e){
-    if(!down)return;down=false;
+    if(dx>15){card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(p*0.6)+')';if(ly)ly.style.opacity=Math.min(1,(dx-15)/55)+'';if(ln)ln.style.opacity='0';}
+    else if(dx<-15){card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(p*0.6)+')';if(ln)ln.style.opacity=Math.min(1,(-dx-15)/55)+'';if(ly)ly.style.opacity='0';}
+    else{card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
+  }
+  function settle(){
     card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
-    if(dx>75){card.style.transform='translateX(160%) rotate(12deg)';card.style.opacity='0';setTimeout(function(){doSwipe(mid,true);},290);}
-    else if(dx<-75){card.style.transform='translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){doSwipe(mid,false);},290);}
+    if(dx>75){card.style.transform='translateX(160%) rotate(12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,true);},290);}
+    else if(dx<-75){card.style.transform='translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,false);},290);}
     else{card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
-  });
-  card.addEventListener('pointercancel',function(){
-    down=false;card.style.transition='transform .3s';card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';
-  });
+  }
+
+  // Touch events (most reliable in Safari)
+  card.addEventListener('touchstart',function(e){active=true;sx=e.touches[0].clientX;dx=0;card.style.transition='none';},{passive:true});
+  card.addEventListener('touchmove',function(e){if(!active)return;var ndx=e.touches[0].clientX-sx;var ndy=Math.abs(e.touches[0].clientY-(e.touches[0].clientY));if(Math.abs(ndx)<5&&ndy<5)return;e.preventDefault();dx=ndx;paint();},{passive:false});
+  card.addEventListener('touchend',function(){if(!active)return;active=false;settle();},{passive:true});
+  card.addEventListener('touchcancel',function(){active=false;card.style.transition='transform .3s';card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';},{passive:true});
+
+  // Pointer events for desktop/fallback
+  card.addEventListener('pointerdown',function(e){if(e.pointerType==='touch')return;active=true;sx=e.clientX;dx=0;card.setPointerCapture(e.pointerId);card.style.transition='none';});
+  card.addEventListener('pointermove',function(e){if(e.pointerType==='touch'||!active)return;dx=e.clientX-sx;paint();});
+  card.addEventListener('pointerup',function(e){if(e.pointerType==='touch'||!active)return;active=false;settle();});
 }
 
+function attachSwipe(){
+  initCard('SC','SCLY','SCLN',doSwipe);
+  initCard('SCP','SCPLY','SCPLN',doPartnerSwipe);
+}
+
+window.randomPick=function(){
+  const matches=getMatches();
+  if(!matches.length)return;
+  const pick=matches[Math.floor(Math.random()*matches.length)];
+  S.detail=S.myMovies.find(w=>w.movie_id===pick.movie_id)||S.partnerMovies.find(w=>w.movie_id===pick.movie_id)||{movie_id:pick.movie_id,movie:pick.movie};
+  render();
+  toast('🎲 Tonight: '+esc(pick.movie?.title||''));
+};
 window.tapSwipe=function(mid,liked){
   var card=document.getElementById('SC');
   if(card){card.style.transition='transform .3s,opacity .3s';card.style.transform=liked?'translateX(160%) rotate(12deg)':'translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){doSwipe(mid,liked);},280);}
@@ -508,6 +510,34 @@ async function loadDiscover(){
   }catch(e){console.error(e);}
   S.dLoading=false;render();
 }
+window.openDiscoverDetail=function(id,title,plot,poster,rating,year){
+  S.detail={
+    movie_id:String(id),
+    movie:{id:String(id),title,plot,poster_path:poster||null,imdb_rating:parseFloat(rating)||null,year,genre:null,director:null,runtime:null},
+    watched:false
+  };
+  render();
+};
+window.loadMoreDiscover=async function(sec,page){
+  const btn=document.getElementById('loadmore-'+sec);
+  if(btn){btn.textContent='Loading...';btn.disabled=true;}
+  const urlMap={
+    'Best of 2026':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=100&primary_release_year=2026&language=en-US&page=${page}`,
+    'Best of 2025':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=500&primary_release_year=2025&language=en-US&page=${page}`,
+    'Best of 2024':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=1000&primary_release_year=2024&language=en-US&page=${page}`,
+    'Top Drama':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=5000&with_genres=18&language=en-US&page=${page}`,
+    'Top Action':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=5000&with_genres=28&language=en-US&page=${page}`,
+    'Top Sci-Fi':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=2000&with_genres=878&language=en-US&page=${page}`,
+    'For You':null,
+  };
+  const url=urlMap[sec];if(!url)return;
+  try{
+    const r=await fetch(url);const d=await r.json();
+    const newMovies=(d.results||[]).slice(0,10);
+    S.discover[sec]=[...(S.discover[sec]||[]),...newMovies];
+    render();
+  }catch(e){toast('Error loading more');}
+};
 window.addDiscover=async function(id,btnId){
   const btn=document.getElementById(btnId);if(btn){btn.textContent='...';btn.disabled=true;}
   const full=await fetchDetails(String(id));
@@ -573,14 +603,18 @@ function renderDetail(){
 }
 
 // SWIPE CARD HTML
-function swipeCardHTML(cur,nxt,cardId,tapFn,idx,total){
+function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
   const pct=Math.round((idx/total)*100);
+  const cardId=isPartner?'SCP':'SC';
+  const ly=isPartner?'SCPLY':'SCLY';
+  const ln=isPartner?'SCPLN':'SCLN';
+  const tapFn=isPartner?'tapPSwipe':'tapSwipe';
   return`<div class="swipe-wrap">
     <div class="swipe-stage">
       ${nxt?`<div class="swipe-bg">${nxt.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(nxt.movie.poster_path)}" style="width:100%;height:100%;object-fit:cover">`:`<div class="swipe-bg-ph">🎬</div>`}</div>`:''}
       <div class="swipe-card" id="${cardId}" data-mid="${cur.movie_id}" style="touch-action:none">
-        <div class="swipe-lbl lbl-yes" id="${cardId}Y">WATCH ❤️</div>
-        <div class="swipe-lbl lbl-no" id="${cardId}N">SKIP ✕</div>
+        <div class="swipe-lbl lbl-yes" id="${ly}">WATCH ❤️</div>
+        <div class="swipe-lbl lbl-no" id="${ln}">SKIP ✕</div>
         ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="width:100%;height:220px;object-fit:cover;display:block">`:`<div class="swipe-card-ph">🎬</div>`}
         <div class="swipe-info">
           <div class="swipe-title">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
@@ -596,6 +630,7 @@ function swipeCardHTML(cur,nxt,cardId,tapFn,idx,total){
       <div class="swipe-bar"><div class="swipe-fill" style="width:${pct}%"></div></div>
       <div class="swipe-lbl-txt">${idx+1} of ${total}</div>
     </div>
+    ${prompt?`<p style="font-size:12px;color:var(--text3);text-align:center;margin-top:.5rem">${prompt} 📱</p>`:''}
   </div>`;
 }
 
@@ -725,7 +760,7 @@ function renderSwipe(){
         <button class="${S.pview?'on':''}" onclick="setPView(true)">${esc(pn)}'s swipes</button>
       </div>
       ${!S.pview?`
-        ${!myDone&&cur?swipeCardHTML(cur,nxt,'SC','tapSwipe',S.qi,S.queue.length):`
+        ${!myDone&&cur?swipeCardHTML(cur,nxt,false,S.qi,S.queue.length,''):`
           <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>Your swipes done!<br><span style="font-size:12px;color:var(--text3)">Switch to ${esc(pn)}'s tab</span></p></div>
           <div style="text-align:center;display:flex;gap:10px;justify-content:center">
             <button class="btn" onclick="startSwipe(S.mood)"><i class="ti ti-refresh"></i> Swipe unseen</button>
@@ -733,12 +768,14 @@ function renderSwipe(){
           </div>`}
       `:`
         ${pUnswiped.length===0?`<div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(pn)} is done!</p></div>`:
-        `<p style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:.5rem">${hp?'Ask '+esc(pn)+' to open CinePair':'Pass the phone to '+esc(pn)} 📱</p>
-        ${swipeCardHTML(pUnswiped[0],pUnswiped[1],'SCP','tapPSwipe',S.queue.length-pUnswiped.length,S.queue.length)}`}
+        swipeCardHTML(pUnswiped[0],pUnswiped[1],true,S.queue.length-pUnswiped.length,S.queue.length,hp?'Ask '+esc(pn)+' to open CinePair':'Pass the phone to '+esc(pn))}
       `}
     </div>
     ${matches.length>0?`
-      <div class="shead"><span class="stitle" style="color:var(--green)">🎉 Matches!</span><span style="font-size:12px;color:var(--text3)">${matches.length}</span></div>
+      <div class="shead">
+        <span class="stitle" style="color:var(--green)">🎉 Matches!</span>
+        ${matches.length>1?`<button class="btn" style="padding:5px 12px;font-size:12px;background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)" onclick="randomPick()"><i class="ti ti-dice"></i> Pick random</button>`:`<span style="font-size:12px;color:var(--text3)">${matches.length}</span>`}
+      </div>
       <div class="card" style="border:1.5px solid var(--green-border);background:rgba(26,122,74,0.04);margin-bottom:1.5rem">
         ${matches.map((m,i)=>`<div class="mrow match-item" style="animation-delay:${i*80}ms" onclick="openDetail('${m.movie_id}')">
           <div class="mposter" style="width:56px;height:82px">${pimg(m.movie?.poster_path,56,82,'w92')}</div>
@@ -755,16 +792,18 @@ function renderDiscover(){
   return`
     <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
     ${S.dLoading&&!keys.length?`<div style="padding:2rem;text-align:center;color:var(--text3)"><div class="spin" style="width:24px;height:24px;margin:0 auto 12px"></div>Loading...</div>`:''}
-    ${keys.map(sec=>`
-      <div class="shead"><span class="stitle">${esc(sec)}</span></div>
-      <div class="drow">${(S.discover[sec]||[]).map(m=>{
+    ${keys.map((sec,si)=>`
+      <div class="shead"><span class="stitle">${esc(sec)}</span>
+        <button id="loadmore-${esc(sec)}" onclick="loadMoreDiscover('${esc(sec)}',${2})" style="font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:DM Sans,sans-serif">Load more</button>
+      </div>
+      <div class="drow" id="drow-${esc(sec)}">${(S.discover[sec]||[]).map(m=>{
         const added=S.myMovies.find(w=>w.movie_id===String(m.id));
         const bid='db'+m.id;
-        return`<div class="dcard">
+        return`<div class="dcard" onclick="openDiscoverDetail(${m.id},'${esc((m.title||m.name||'').replace(/'/g,"\'"))}','${esc((m.overview||'').slice(0,200).replace(/'/g,"\'"))}','${esc(m.poster_path||'')}','${m.vote_average?m.vote_average.toFixed(1):'?'}','${esc((m.release_date||'').slice(0,4))}')">
           <div class="dposter">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(m.poster_path)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`:'🎬'}</div>
           <div class="dtitle">${esc(m.title||m.name||'')}</div>
           <div class="drating">★ ${m.vote_average?m.vote_average.toFixed(1):'?'}</div>
-          <button class="dadd${added?' added':''}" id="${bid}" onclick="addDiscover(${m.id},'${bid}')">${added?'✓ Added':'+ Add'}</button>
+          <button class="dadd${added?' added':''}" id="${bid}" onclick="event.stopPropagation();addDiscover(${m.id},'${bid}')">${added?'✓ Added':'+ Add'}</button>
         </div>`;}).join('')}</div>`).join('')}
     ${!keys.length&&!S.dLoading?`<div class="empty"><i class="ti ti-compass"></i><p>Loading recommendations...</p></div>`:''}`;
 }
