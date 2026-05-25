@@ -315,7 +315,9 @@ async function doSearch(){
   const q=(el?el.value:'').trim();
   const rEl=document.getElementById('searchResults');
   if(!q){if(rEl)rEl.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">Start typing to search</p>';return;}
-  if(rEl)rEl.innerHTML='<div class="loading-row"><div class="spinner"></div> Searching...</div>';
+  // Show spinner at top without wiping existing results
+  const existingContent=rEl?rEl.innerHTML:'';
+  if(rEl)rEl.innerHTML='<div class="loading-row"><div class="spinner"></div> Searching...</div>'+(existingContent.includes('result-item')?existingContent:'');
   try{
     const r=await fetch(`${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US&page=1`);
     const d=await r.json();
@@ -347,8 +349,15 @@ function onSearchInput(){
   clearTimeout(_searchTimer);
   const el=document.getElementById('sInput');
   const q=(el?el.value:'').trim();
-  // Instant search for 3+ chars, slight delay for shorter
-  const delay=q.length>=3?300:600;
+  if(!q){
+    // only clear results if input is fully empty
+    const rEl=document.getElementById('searchResults');
+    if(rEl)rEl.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">Start typing to search</p>';
+    return;
+  }
+  // Don't wipe existing results while user is still typing
+  // Just wait then search
+  const delay=q.length>=3?400:700;
   _searchTimer=setTimeout(doSearch,delay);
 }
 window.addToWatchlistEnc=enc=>{try{addToWatchlist(JSON.parse(decodeURIComponent(enc)));}catch(e){toast('Error');}};
