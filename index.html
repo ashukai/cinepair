@@ -120,14 +120,14 @@ input::placeholder{color:var(--text3)}
 
 /* SWIPE */
 .swipe-wrap{display:flex;flex-direction:column;align-items:center;padding:.5rem 1rem 0;touch-action:none;user-select:none}
-.swipe-stage{position:relative;width:220px;height:310px;margin-bottom:.75rem}
-.swipe-bg{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 4px 16px rgba(0,0,0,.08);transform:scale(.93) translateY(10px);overflow:hidden}
+.swipe-stage{position:relative;width:220px;height:300px;margin-bottom:.75rem}
+.swipe-bg{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 4px 16px rgba(0,0,0,.08);transform:scale(.93) translateY(10px);overflow:hidden;background:var(--surface3)}
 .swipe-bg img,.swipe-bg-ph{width:100%;height:100%;object-fit:cover;display:block}
 .swipe-bg-ph{display:flex;align-items:center;justify-content:center;font-size:52px}
-.swipe-card{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 8px 28px rgba(0,0,0,.12);overflow:hidden;cursor:grab;will-change:transform}
+.swipe-card{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 8px 28px rgba(0,0,0,.12);cursor:grab;will-change:transform;overflow:hidden}
 .swipe-card img,.swipe-card-ph{width:100%;height:220px;object-fit:cover;display:block}
 .swipe-card-ph{height:220px;display:flex;align-items:center;justify-content:center;font-size:60px;background:var(--surface3)}
-.swipe-info{padding:.625rem .75rem .5rem}
+.swipe-info{display:none}
 .swipe-title{font-size:14px;font-weight:600;line-height:1.3}
 .swipe-meta{font-size:12px;color:var(--text2);margin-top:2px}
 .swipe-lbl{position:absolute;top:14px;padding:5px 12px;border-radius:20px;font-size:14px;font-weight:700;opacity:0;pointer-events:none;z-index:5}
@@ -399,8 +399,10 @@ function startSwipe(mood){
   S.mood=mood;
   let p=pool(mood).filter(w=>S.mySwipes[w.movie_id]===undefined);
   if(!p.length){S.mySwipes={};S.pSwipes={};p=pool(mood);if(!p.length){toast('No movies match');return;}toast('All swiped — starting fresh!');}
-  S.queue=[...p].sort(()=>Math.random()-.5);S.qi=0;S.swiping=true;render();
-  setTimeout(attachSwipe,100);
+  S.queue=[...p].sort(()=>Math.random()-.5);S.qi=0;S.swiping=true;
+  // Preload first 3 images before showing
+  S.queue.slice(0,3).forEach(w=>{if(w.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;}});
+  render();setTimeout(attachSwipe,100);
 }
 async function doSwipe(mid,liked){
   if(S.playlist)await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});
@@ -618,12 +620,12 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
       <div class="swipe-card" id="${cardId}" data-mid="${cur.movie_id}" style="touch-action:none">
         <div class="swipe-lbl lbl-yes" id="${ly}">WATCH ❤️</div>
         <div class="swipe-lbl lbl-no" id="${ln}">SKIP ✕</div>
-        <div style="width:100%;height:220px;background:var(--surface3);overflow:hidden;flex-shrink:0;position:relative">
+        <div style="width:100%;height:300px;background:var(--surface3);overflow:hidden;flex-shrink:0;position:relative;border-radius:16px">
           ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" decoding="async">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
-        </div>
-        <div class="swipe-info">
-          <div class="swipe-title">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
-          <div class="swipe-meta">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem;background:linear-gradient(transparent,rgba(0,0,0,0.82))">
+            <div style="font-size:15px;font-weight:600;color:#fff;line-height:1.3">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.8">(${esc(cur.movie?.year||'')})</span></div>
+            <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+          </div>
         </div>
       </div>
     </div>
