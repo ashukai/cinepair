@@ -329,17 +329,17 @@ async function doSearch(){
     const rEl2=document.getElementById('searchResults');
     if(!rEl2)return;
     if(!results.length){rEl2.innerHTML='<p style="font-size:13px;color:var(--text3);padding:10px 0">No results found</p>';return;}
-    rEl2.innerHTML=results.map(m=>{
-      const enc=encodeURIComponent(JSON.stringify(m));
-      return`<div class="result-item" onclick="addToWatchlistEnc('${enc}')">
+    window._searchResults=results;
+    rEl2.innerHTML=results.map((m,i)=>`
+      <div class="result-item" onclick="addByIdx(${i})">
         <div class="r-poster">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w92${esc(m.poster_path)}" loading="lazy">`:'🎬'}</div>
         <div class="r-info">
           <div class="r-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
-          <div class="r-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,60))}${(m.plot||'').length>60?'...':''}</div>
+          <div class="r-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,55))}${(m.plot||'').length>55?'...':''}</div>
         </div>
-        <div class="r-add"><i class="ti ti-plus"></i></div>
-      </div>`;
-    }).join('');
+        <div class="r-add" id="radd-${i}"><i class="ti ti-plus"></i></div>
+      </div>`
+    ).join('');
   }catch(e){
     const rEl2=document.getElementById('searchResults');
     if(rEl2)rEl2.innerHTML='<p style="font-size:13px;color:var(--red);padding:10px 0">Search failed</p>';
@@ -370,6 +370,29 @@ function clearSearch(){
   clearTimeout(_searchTimer);
 }
 window.addToWatchlistEnc=enc=>{try{addToWatchlist(JSON.parse(decodeURIComponent(enc)));}catch(e){toast('Error');}};
+window.addByIdx=async function(i){
+  const m=(window._searchResults||[])[i];
+  if(!m){toast('Error');return;}
+  const btn=document.getElementById('radd-'+i);
+  if(btn)btn.innerHTML='<div class="spinner"></div>';
+  await addToWatchlist(m);
+};;
+window.addToWatchlistByIndex=function(i){
+  const results=window._searchResults;
+  if(!results||!results[i]){toast('Error finding movie');return;}
+  // Mark button immediately
+  const btn=document.getElementById('radd-'+i);
+  if(btn){btn.innerHTML='<div class="spinner"></div>';}
+  addToWatchlist(results[i]).then(()=>{
+    const btn2=document.getElementById('radd-'+i);
+    if(btn2){
+      btn2.innerHTML='<i class="ti ti-check" style="font-size:15px"></i>';
+      btn2.style.background='#e2f5ec';
+      btn2.style.borderColor='rgba(26,122,74,0.3)';
+      btn2.style.color='#1a7a4a';
+    }
+  });
+};;
 
 async function fetchMovieDetails(id){
   try{
