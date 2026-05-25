@@ -174,7 +174,7 @@ input::placeholder{color:var(--text3)}
 </div>
 <div id="app"></div>
 <div class="toast" id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL='https://mshcjeibgyhruxddjwxy.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaGNqZWliZ3locnV4ZGRqd3h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mzc2NDksImV4cCI6MjA5NTIxMzY0OX0.IOijSeR9eCwaQ687VM8OyuGPvKJSN-Z77QxJuFAlAGs';
@@ -999,7 +999,7 @@ function render(){
   app.innerHTML=`<div class="screen">${content}</div>${nav}${modal}${detail}${a2hs}`;
   // Hide splash screen on first render
   const splash=document.getElementById('splash');
-  if(splash&&splash.style.opacity!=='0'){splash.style.opacity='0';setTimeout(()=>splash.remove(),320);}
+  if(splash&&splash.style.opacity!=='0'){splash.style.opacity='0';setTimeout(()=>{if(splash.parentNode)splash.remove();},320);}
   if(S.modal==='add')setTimeout(()=>{document.getElementById('sInput')?.focus();},80);
   if(S.modal==='partner')setTimeout(()=>{document.getElementById('pInput')?.focus();},80);
 }
@@ -1042,6 +1042,9 @@ window.doSignUp=()=>{
   if(user.length<3){S.authErr='Username must be at least 3 characters';render();return;}
   signUp(email,pass,user);
 };
+
+// Safety net — always remove splash after 4s max
+setTimeout(()=>{const s=document.getElementById('splash');if(s){s.style.opacity='0';setTimeout(()=>{if(s.parentNode)s.remove();},320);}},4000);
 
 (async()=>{
   const{data:{session}}=await sb.auth.getSession();
