@@ -449,6 +449,12 @@ function startSwipe(){
   const pool=S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===undefined);
   S.swipeQueue=[...pool].sort(()=>Math.random()-.5);S.swipeIdx=0;render();
 }
+async function resetSwipes(){
+  if(!S.playlist)return;
+  await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;
+  toast('Swipes reset! Start fresh.');render();
+}
 async function doSwipe(movieId,liked){
   await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});
   S.mySwipes[movieId]=liked;S.swipeIdx++;
@@ -470,7 +476,13 @@ async function doPartnerSwipe(movieId,liked){
   }
   render();
 }
-function getMatches(){return S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true);}
+function getMatches(){
+  // only show matches when both have finished swiping all movies
+  const myDoneAll=S.togetherMovies.every(m=>S.mySwipes[m.movie_id]!==undefined);
+  const partnerDoneAll=S.togetherMovies.every(m=>S.partnerSwipes[m.movie_id]!==undefined);
+  if(!myDoneAll||!partnerDoneAll)return[];
+  return S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true);
+}
 
 // RENDER
 function pImg(path,w,h,size){
@@ -669,11 +681,17 @@ function renderSwipe(){
           </div>
         `:`
           <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>You've swiped everything!<br><span style="font-size:12px;color:var(--text3)">Switch to ${esc(pName)}'s swipes tab</span></p></div>
-          <div style="text-align:center"><button class="btn" onclick="startSwipe()"><i class="ti ti-refresh"></i> Reshuffle</button></div>
+          <div style="text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="btn" onclick="startSwipe()"><i class="ti ti-refresh"></i> Swipe unseen</button>
+            <button class="btn" style="color:var(--red)" onclick="resetSwipes()"><i class="ti ti-rotate"></i> Reset all swipes</button>
+          </div>
         `}
       `:`
         ${partnerUnswiped.length===0?`
           <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(pName)} is all done!</p></div>
+          <div style="text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:1rem">
+            <button class="btn" style="color:var(--red)" onclick="resetSwipes()"><i class="ti ti-rotate"></i> Reset all swipes</button>
+          </div>
         `:`
           <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">${hasPartner?'Ask '+esc(pName)+' to open CinePair':'Pass the phone to '+esc(pName)} 📱</p>
           <div class="swipe-inner">
@@ -849,6 +867,7 @@ window.onSearchInput=onSearchInput;
 window.doPartnerSearch=doPartnerSearch;
 window.doSignOut=signOut;
 window.startSwipe=startSwipe;
+window.resetSwipes=resetSwipes;
 window.doSwipe=doSwipe;
 window.doPartnerSwipe=doPartnerSwipe;
 window.addToWatchlist=addToWatchlist;
