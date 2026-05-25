@@ -465,6 +465,7 @@ async function doSwipe(movieId,liked){
     await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});
   }
   S.mySwipes[movieId]=liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
 }
 async function doPartnerSwipe(movieId,liked){
   if(S.playlist&&S.playlist.partner_id){
@@ -472,6 +473,7 @@ async function doPartnerSwipe(movieId,liked){
     await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});
   }
   S.partnerSwipes[movieId]=liked;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
 }
 async function resetSwipes(){
   if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
