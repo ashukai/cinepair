@@ -523,8 +523,294 @@ function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
   if(!card||card._init)return;
   card._init=true;
-  const labelYes=document.getElementById('swipeLabelYes');
-  const labelNo=document.getElementById('swipeLabelNo');
+  const labelYes=document.getElementById('swipeCardYes');
+  const labelNo=document.getElementById('swipeCardNo');
+  const movieId=card.dataset.movieId;
+  let x0=0,y0=0,dx=0,dir=null;
+
+  function show(liked){
+    card.style.transform='translateX('+dx+'px) rotate('+(dx*0.07)+'deg)';
+    const p=Math.min(Math.abs(dx)/100,1);
+    if(liked){
+      card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(p*0.6)+')';
+      if(labelYes)labelYes.style.opacity=Math.min(1,(dx-20)/60)+'';
+      if(labelNo)labelNo.style.opacity='0';
+    } else {
+      card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(p*0.6)+')';
+      if(labelNo)labelNo.style.opacity=Math.min(1,(-dx-20)/60)+'';
+      if(labelYes)labelYes.style.opacity='0';
+    }
+  }
+  function reset(){
+    card.style.transform='translateX(0) rotate(0deg)';
+    card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+    if(labelYes)labelYes.style.opacity='0';
+    if(labelNo)labelNo.style.opacity='0';
+  }
+  function settle(){
+    card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+    if(dx>80){card.style.transform='translateX(150%) rotate(15deg)';card.style.opacity='0';setTimeout(function(){doSwipe(movieId,true,false);},280);}
+    else if(dx<-80){card.style.transform='translateX(-150%) rotate(-15deg)';card.style.opacity='0';setTimeout(function(){doSwipe(movieId,false,false);},280);}
+    else{reset();}
+  }
+
+  card.addEventListener('touchstart',function(e){
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;dir=null;
+    card.style.transition='none';
+  },{passive:true});
+
+  card.addEventListener('touchmove',function(e){
+    var cx=e.touches[0].clientX,cy=e.touches[0].clientY;
+    if(!dir){
+      var adx=Math.abs(cx-x0),ady=Math.abs(cy-y0);
+      if(adx<8&&ady<8)return;
+      dir=adx>ady?'h':'v';
+    }
+    if(dir==='v')return;
+    e.preventDefault();
+    dx=cx-x0;
+    if(dx>20)show(true);
+    else if(dx<-20)show(false);
+    else{card.style.transform='translateX('+dx+'px)';card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}
+  },{passive:false});
+
+  card.addEventListener('touchend',function(){
+    if(dir==='h')settle();
+  },{passive:true});
+
+  // Mouse for desktop
+  card.addEventListener('mousedown',function(e){
+    x0=e.clientX;dx=0;dir='h';card.style.transition='none';e.preventDefault();
+    function mm(e){dx=e.clientX-x0;if(dx>20)show(true);else if(dx<-20)show(false);else{card.style.transform='translateX('+dx+'px)';card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}}
+    function mu(){window.removeEventListener('mousemove',mm);window.removeEventListener('mouseup',mu);settle();}
+    window.addEventListener('mousemove',mm);window.addEventListener('mouseup',mu);
+  });
+}
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  // Show matches as soon as both have swiped on any movie
+  const pool=S.swipeQueue.length>0?S.swipeQueue:getSwipePool(S.selectedMood);
+  if(pool.length===0)return[];
+  // Check if both finished
+  const myDone=pool.every(m=>S.mySwipes[m.movie_id]!==undefined);
+  const partnerDone=pool.every(m=>S.partnerSwipes[m.movie_id]!==undefined);
+  if(!myDone||!partnerDone)return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  // Show matches as soon as both have swiped on any movie
+  const pool=S.swipeQueue.length>0?S.swipeQueue:getSwipePool(S.selectedMood);
+  if(pool.length===0)return[];
+  // Check if both finished
+  const myDone=pool.every(m=>S.mySwipes[m.movie_id]!==undefined);
+  const partnerDone=pool.every(m=>S.partnerSwipes[m.movie_id]!==undefined);
+  if(!myDone||!partnerDone)return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+function initSwipeGestures(){
+  const card=document.getElementById('swipeCard');
+  if(!card||card._init)return;
+  card._init=true;
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
+  const movieId=card.dataset.movieId;
+  let x0=0,y0=0,dx=0,dir=null;
+
+  card.addEventListener('touchstart',function(e){
+    x0=e.touches[0].clientX;
+    y0=e.touches[0].clientY;
+    dx=0;dir=null;
+    card.style.transition='none';
+  },{passive:true});
+
+  card.addEventListener('touchmove',function(e){
+    const x=e.touches[0].clientX;
+    const y=e.touches[0].clientY;
+    if(!dir){
+      const adx=Math.abs(x-x0),ady=Math.abs(y-y0);
+      if(adx<5&&ady<5)return;
+      dir=adx>=ady?'h':'v';
+    }
+    if(dir==='v')return;
+    e.preventDefault();
+    dx=x-x0;
+    card.style.transform='translateX('+dx+'px) rotate('+(dx*0.07)+'deg)';
+    if(dx>20){
+      card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(Math.min(dx/100,1)*0.6)+')';
+      if(labelYes)labelYes.style.opacity=Math.min(1,(dx-20)/60)+'';
+      if(labelNo)labelNo.style.opacity='0';
+    } else if(dx<-20){
+      card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(Math.min(-dx/100,1)*0.6)+')';
+      if(labelNo)labelNo.style.opacity=Math.min(1,(-dx-20)/60)+'';
+      if(labelYes)labelYes.style.opacity='0';
+    } else {
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  },{passive:false});
+
+  card.addEventListener('touchend',function(){
+    if(dir!=='h')return;
+    card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+    if(dx>80){
+      card.style.transform='translateX(150%) rotate(15deg)';card.style.opacity='0';
+      setTimeout(function(){doSwipe(movieId,true,false);},280);
+    } else if(dx<-80){
+      card.style.transform='translateX(-150%) rotate(-15deg)';card.style.opacity='0';
+      setTimeout(function(){doSwipe(movieId,false,false);},280);
+    } else {
+      card.style.transform='translateX(0) rotate(0deg)';
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  },{passive:true});
+
+  // Desktop mouse
+  card.addEventListener('mousedown',function(e){
+    x0=e.clientX;dx=0;dir='h';
+    card.style.transition='none';
+    e.preventDefault();
+    function mm(e){
+      dx=e.clientX-x0;
+      card.style.transform='translateX('+dx+'px) rotate('+(dx*0.07)+'deg)';
+      if(dx>20){card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(Math.min(dx/100,1)*0.6)+')';if(labelYes)labelYes.style.opacity=Math.min(1,(dx-20)/60)+'';if(labelNo)labelNo.style.opacity='0';}
+      else if(dx<-20){card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(Math.min(-dx/100,1)*0.6)+')';if(labelNo)labelNo.style.opacity=Math.min(1,(-dx-20)/60)+'';if(labelYes)labelYes.style.opacity='0';}
+      else{card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}
+    }
+    function mu(){
+      window.removeEventListener('mousemove',mm);window.removeEventListener('mouseup',mu);
+      card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+      if(dx>80){card.style.transform='translateX(150%) rotate(15deg)';card.style.opacity='0';setTimeout(function(){doSwipe(movieId,true,false);},280);}
+      else if(dx<-80){card.style.transform='translateX(-150%) rotate(-15deg)';card.style.opacity='0';setTimeout(function(){doSwipe(movieId,false,false);},280);}
+      else{card.style.transform='translateX(0) rotate(0deg)';card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}
+    }
+    window.addEventListener('mousemove',mm);
+    window.addEventListener('mouseup',mu);
+  });
+}
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  // Show matches as soon as both have swiped on any movie
+  const pool=S.swipeQueue.length>0?S.swipeQueue:getSwipePool(S.selectedMood);
+  if(pool.length===0)return[];
+  // Check if both finished
+  const myDone=pool.every(m=>S.mySwipes[m.movie_id]!==undefined);
+  const partnerDone=pool.every(m=>S.partnerSwipes[m.movie_id]!==undefined);
+  if(!myDone||!partnerDone)return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  // Show matches as soon as both have swiped on any movie
+  const pool=S.swipeQueue.length>0?S.swipeQueue:getSwipePool(S.selectedMood);
+  if(pool.length===0)return[];
+  // Check if both finished
+  const myDone=pool.every(m=>S.mySwipes[m.movie_id]!==undefined);
+  const partnerDone=pool.every(m=>S.partnerSwipes[m.movie_id]!==undefined);
+  if(!myDone||!partnerDone)return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+function initSwipeGestures(){
+  const card=document.getElementById('swipeCard');
+  if(!card||card._init)return;
+  card._init=true;
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
   const movieId=card.dataset.movieId;
   let startX=0,startY=0,curX=0,tracking=false;
 
@@ -680,8 +966,8 @@ function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
   if(!card||card._init)return;
   card._init=true;
-  const labelYes=document.getElementById('swipeLabelYes');
-  const labelNo=document.getElementById('swipeLabelNo');
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
   const movieId=card.dataset.movieId;
   const screen=document.querySelector('.screen');
   let startX=0,startY=0,curX=0,active=false,locked=false;
@@ -842,8 +1128,8 @@ function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
   if(!card||card._init)return;
   card._init=true;
-  const labelYes=document.getElementById('swipeLabelYes');
-  const labelNo=document.getElementById('swipeLabelNo');
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
   const movieId=card.dataset.movieId;
   let startX=0,curX=0,active=false;
 
@@ -978,8 +1264,8 @@ function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
   if(!card||card._init)return;
   card._init=true;
-  const labelYes=document.getElementById('swipeLabelYes');
-  const labelNo=document.getElementById('swipeLabelNo');
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
   const movieId=card.dataset.movieId;
   let startX=0,curX=0,dragging=false;
 
@@ -1118,8 +1404,8 @@ function initSwipeGestures(){
   const c2=document.getElementById('swipeCard');
   if(!c2)return;
   let startX=0,startY=0,curX=0,curY=0,dragging=false;
-  const labelYes=document.getElementById('swipeLabelYes');
-  const labelNo=document.getElementById('swipeLabelNo');
+  const labelYes=document.getElementById(card.id+'LabelYes')||document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById(card.id+'LabelNo')||document.getElementById('swipeLabelNo');
   const labelWatch=document.getElementById('swipeLabelWatch');
   const movieId=card.dataset.movieId;
 
@@ -1355,14 +1641,51 @@ function renderPartner(){
     `}`;
 }
 
+function swipeCardHTML(cur, next, cardId, movieId, idx, total, tapFn){
+  const poster = cur.movie?.poster_path
+    ? `<img class="swipe-card-poster" src="https://image.tmdb.org/t/p/w342${cur.movie.poster_path}" crossorigin="anonymous">`
+    : `<div class="swipe-card-poster-placeholder">🎬</div>`;
+  const nextPoster = next?.movie?.poster_path
+    ? `<img class="swipe-card-next-poster" src="https://image.tmdb.org/t/p/w342${next.movie.poster_path}" crossorigin="anonymous">`
+    : `<div class="swipe-card-next-placeholder">🎬</div>`;
+  const pct = Math.round((idx/total)*100);
+  return `
+    <div class="swipe-stage">
+      ${next ? `<div class="swipe-card-next">${nextPoster}</div>` : ''}
+      <div class="swipe-card" id="${cardId}" data-movie-id="${movieId}">
+        <div class="swipe-label swipe-label-yes" id="${cardId}Yes">WATCH ❤️</div>
+        <div class="swipe-label swipe-label-no" id="${cardId}No">SKIP ✕</div>
+        ${poster}
+        <div class="swipe-card-info">
+          <div class="swipe-card-title">${cur.movie?.title||''} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${cur.movie?.year||''})</span></div>
+          <div class="swipe-card-meta">${cur.movie?.genre||''}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:2.5rem;margin:.75rem 0 .25rem">
+      <button onclick="${tapFn}('${movieId}',false)" style="width:64px;height:64px;border-radius:50%;background:#fde8e8;color:#c0392b;border:1px solid rgba(192,57,43,.25);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(192,57,43,.15)"><i class="ti ti-x"></i></button>
+      <button onclick="${tapFn}('${movieId}',true)" style="width:64px;height:64px;border-radius:50%;background:#e2f5ec;color:#1a7a4a;border:1px solid rgba(26,122,74,.25);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(26,122,74,.15)"><i class="ti ti-heart"></i></button>
+    </div>
+    <div style="display:flex;justify-content:center;gap:2.5rem;margin-bottom:.75rem">
+      <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Skip</span>
+      <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Watch</span>
+    </div>
+    <div style="max-width:160px;margin:0 auto .5rem;text-align:center">
+      <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden">
+        <div style="height:100%;background:var(--accent-soft);width:${pct}%;border-radius:2px;transition:width .3s"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${idx+1} of ${total}</div>
+    </div>`;
+}
+
 function renderSwipe(){
-  if(!S.playlist)return`
+  if(!S.playlist) return `
     <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
     <div class="card card-pad" style="margin-top:.5rem">
       <div style="font-size:16px;font-weight:500;margin-bottom:.75rem">Set up swiping</div>
-      <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Swipe through your movie list together to find what you both want to watch.</p>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Swipe through your movie list together.</p>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button class="btn btn-gold" onclick="createSoloPlaylist()"><i class="ti ti-device-mobile"></i> Use one phone — no account needed</button>
+        <button class="btn btn-gold" onclick="createSoloPlaylist()"><i class="ti ti-device-mobile"></i> Use one phone</button>
         <button class="btn" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
       </div>
     </div>`;
@@ -1374,14 +1697,15 @@ function renderSwipe(){
   const cur=S.swipeQueue[S.swipeIdx];
   const next=S.swipeQueue[S.swipeIdx+1];
   const partnerUnswiped=S.swipeQueue.filter(m=>S.partnerSwipes[m.movie_id]===undefined);
+  const moodLabel=MOODS.find(m=>m.id===S.selectedMood)?.label||'Movies';
 
   if(!S.swipeStarted){
     const allPool=getAllMovies();
-    return`
+    return `
     <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
     <div class="section-head"><span class="section-title">What are you in the mood for?</span></div>
     <div style="padding:0 1rem">
-      ${allPool.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add some movies to your list first</p></div>`:`
+      ${allPool.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add movies to your list first</p></div>`:`
       <div class="mood-grid">
         ${MOODS.map(mood=>{const cnt=getSwipePool(mood.id).length;return`<button class="mood-btn ${mood.wide?'wide':''}" onclick="startSwipe('${mood.id}')">
           <i class="ti ${mood.icon}" style="font-size:22px;color:var(--accent-soft)"></i>
@@ -1390,12 +1714,12 @@ function renderSwipe(){
         </button>`;}).join('')}
       </div>`}
       ${matches.length>0?`
-        <div class="section-title" style="color:var(--accent-soft);margin:1rem 0 .75rem">Previous matches</div>
-        <div class="card match-card" style="margin:0 0 .75rem">
-          ${matches.map(m=>`<div class="movie-item" onclick="openDetail('${m.movie_id}')">
+        <div class="section-title" style="color:var(--green);margin:1rem 0 .75rem">🎉 Previous matches</div>
+        <div class="card" style="border:1.5px solid var(--green-border);background:rgba(26,122,74,0.04);margin:0 0 .75rem">
+          ${matches.map((m,i)=>`<div class="movie-item match-item" style="animation-delay:${i*80}ms" onclick="openDetail('${m.movie_id}')">
             <div class="m-poster" style="width:56px;height:82px">${pImg(m.movie?.poster_path,56,82,'w92')}</div>
-            <div class="m-info"><div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div><div class="tags"><span class="tag tag-green">You both wanted this!</span></div></div>
-            <i class="ti ti-chevron-right m-chevron"></i>
+            <div class="m-info"><div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div><div class="tags"><span class="tag tag-green">✓ Both swiped right</span></div></div>
+            <i class="ti ti-chevron-right" style="color:var(--green);font-size:18px;flex-shrink:0;align-self:center"></i>
           </div>`).join('')}
         </div>
       `:''}
@@ -1405,12 +1729,9 @@ function renderSwipe(){
     </div>`;
   }
 
-  const moodLabel=MOODS.find(m=>m.id===S.selectedMood)?.label||'Movies';
-  return`
+  return `
     <div class="header">
-      <button onclick="S.swipeStarted=false;render()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;color:var(--accent-soft);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0">
-        <i class="ti ti-chevron-left" style="font-size:22px"></i> Moods
-      </button>
+      <button onclick="S.swipeStarted=false;render()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--accent-soft);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0"><i class="ti ti-chevron-left" style="font-size:22px"></i> Moods</button>
       <div class="logo">Cine<em>Pair</em></div>
       <div style="width:80px"></div>
     </div>
@@ -1423,127 +1744,32 @@ function renderSwipe(){
         <button class="${!S.partnerView?'active':''}" onclick="setPartnerView(false)">My swipes</button>
         <button class="${S.partnerView?'active':''}" onclick="setPartnerView(true)">${esc(pName)}'s swipes</button>
       </div>
-      ${!S.partnerView?`
-        ${!myDone&&cur?`
-          <div class="swipe-stage">
-            ${next?`<div class="swipe-card-next">
-              ${next.movie?.poster_path?`<img class="swipe-card-next-poster" src="https://image.tmdb.org/t/p/w342${esc(next.movie.poster_path)}" loading="lazy">`:`<div class="swipe-card-next-placeholder">🎬</div>`}
-            </div>`:''}
-            <div class="swipe-card" id="swipeCard" data-movie-id="${cur.movie_id}">
-              <span class="swipe-label swipe-label-yes" id="swipeLabelYes">WATCH</span>
-              <span class="swipe-label swipe-label-no" id="swipeLabelNo">SKIP</span>
-              <span class="swipe-label swipe-label-watch" id="swipeLabelWatch">WATCHED</span>
-              ${cur.movie?.poster_path?`<img class="swipe-card-poster" src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}">`:`<div class="swipe-card-poster-placeholder">🎬</div>`}
-              <div class="swipe-card-info">
-                <div class="swipe-card-title">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
-                <div class="swipe-card-meta">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:2rem;padding:.75rem 0 .25rem">
-            <button onclick="tapSwipe('${cur.movie_id}',false)" style="width:64px;height:64px;border-radius:50%;background:#fde8e8;color:var(--red);border:0.5px solid rgba(192,57,43,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform='scale(.9)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(.9)'" ontouchend="this.style.transform='scale(1)'"><i class="ti ti-x"></i></button>
-            <button onclick="tapSwipe('${cur.movie_id}',true)" style="width:64px;height:64px;border-radius:50%;background:#e2f5ec;color:var(--green);border:0.5px solid rgba(26,122,74,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform='scale(.9)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(.9)'" ontouchend="this.style.transform='scale(1)'"><i class="ti ti-heart"></i></button>
-          </div>
-          <div style="display:flex;justify-content:center;gap:2rem;padding:0 0 .25rem">
-            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Skip</span>
-            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Watch</span>
-          </div>
-          <div style="text-align:center;margin-top:.5rem">
-            <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;max-width:200px;margin:0 auto">
-              <div style="height:100%;background:var(--accent-soft);width:${Math.round((S.swipeIdx/S.swipeQueue.length)*100)}%;border-radius:2px;transition:width .3s"></div>
-            </div>
-            <div style="font-size:12px;color:var(--text3);margin-top:5px">${S.swipeIdx+1} of ${S.swipeQueue.length}</div>
-          </div>
-        `:`
-          <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>Your swipes done!<br><span style="font-size:12px;color:var(--text3)">Switch to ${esc(pName)}'s tab</span></p></div>
-          <div style="text-align:center;display:flex;gap:10px;justify-content:center">
-            <button class="btn" onclick="startSwipe(S.selectedMood)"><i class="ti ti-refresh"></i> Swipe unseen</button>
-            <button class="btn" style="color:var(--red)" onclick="resetSwipes()"><i class="ti ti-rotate"></i> Reset</button>
-          </div>
-        `}
-      `:`
-        ${partnerUnswiped.length===0?`
-          <div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(pName)} is done too!</p></div>
-        `:`
-          <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">${hasPartner?'Ask '+esc(pName)+' to open CinePair':'Pass the phone to '+esc(pName)} 📱</p>
-          <div class="swipe-stage">
-            <div class="swipe-card" id="swipeCardPartner" data-movie-id="${partnerUnswiped[0].movie_id}" style="cursor:default">
-              ${partnerUnswiped[0].movie?.poster_path?`<img class="swipe-card-poster" src="https://image.tmdb.org/t/p/w342${esc(partnerUnswiped[0].movie.poster_path)}">`:`<div class="swipe-card-poster-placeholder">🎬</div>`}
-              <div class="swipe-card-info">
-                <div class="swipe-card-title">${esc(partnerUnswiped[0].movie?.title||'')} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${esc(partnerUnswiped[0].movie?.year||'')})</span></div>
-                <div class="swipe-card-meta">${esc(partnerUnswiped[0].movie?.genre||'')}${partnerUnswiped[0].movie?.imdb_rating?' · ★ '+partnerUnswiped[0].movie.imdb_rating:''}</div>
-              </div>
-            </div>
-          </div>
-          <div class="swipe-hints">
-            <div class="swipe-hint" style="color:var(--red)"><i class="ti ti-arrow-left"></i><span>Skip</span></div>
-            <div class="swipe-hint" style="color:var(--green)"><i class="ti ti-arrow-right"></i><span>Watch</span></div>
-          </div>
-          <div style="display:flex;justify-content:center;gap:2rem;padding:.75rem 0 .25rem">
-            <button onclick="tapPartnerSwipe('${partnerUnswiped[0].movie_id}',false)" style="width:64px;height:64px;border-radius:50%;background:#fde8e8;color:var(--red);border:0.5px solid rgba(192,57,43,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-x"></i></button>
-            <button onclick="tapPartnerSwipe('${partnerUnswiped[0].movie_id}',true)" style="width:64px;height:64px;border-radius:50%;background:#e2f5ec;color:var(--green);border:0.5px solid rgba(26,122,74,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-heart"></i></button>
-          </div>
-          <div style="display:flex;justify-content:center;gap:2rem">
-            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Skip</span>
-            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Watch</span>
-          </div>
-          <div style="text-align:center;font-size:12px;color:var(--text3);margin-top:.75rem">${partnerUnswiped.length} remaining</div>
-        `}
+      ${!S.partnerView ? `
+        ${!myDone&&cur
+          ? swipeCardHTML(cur,next,'swipeCard',cur.movie_id,S.swipeIdx,S.swipeQueue.length,'tapSwipe')
+          : `<div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>Your swipes done!<br><span style="font-size:12px;color:var(--text3)">Switch to ${esc(pName)}'s tab</span></p></div>
+             <div style="text-align:center;display:flex;gap:10px;justify-content:center">
+               <button class="btn" onclick="startSwipe(S.selectedMood)"><i class="ti ti-refresh"></i> Swipe unseen</button>
+               <button class="btn" style="color:var(--red)" onclick="resetSwipes()"><i class="ti ti-rotate"></i> Reset</button>
+             </div>`}
+      ` : `
+        ${partnerUnswiped.length===0
+          ? `<div class="empty" style="padding:1.5rem 0"><i class="ti ti-check" style="color:var(--green)"></i><p>${esc(pName)} is done too!</p></div>`
+          : `<p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:.75rem">${hasPartner?'Ask '+esc(pName)+' to open CinePair':'Pass the phone to '+esc(pName)} 📱</p>
+             ${swipeCardHTML(partnerUnswiped[0],partnerUnswiped[1],'swipeCardP',partnerUnswiped[0].movie_id,S.swipeQueue.length-partnerUnswiped.length,S.swipeQueue.length,'tapPartnerSwipe')}`}
       `}
     </div>
     ${matches.length>0?`
-      <div class="section-head" style="margin-top:.5rem">
-        <span class="section-title" style="color:var(--green);letter-spacing:.5px">🎉 You both want to watch!</span>
-        <span style="font-size:12px;color:var(--text3)">${matches.length} match${matches.length!==1?'es':''}</span>
-      </div>
-      <div class="card" style="border:1.5px solid var(--green-border);background:linear-gradient(135deg,rgba(26,122,74,0.04),rgba(26,122,74,0.08));margin-bottom:1.5rem">
+      <div class="section-head"><span class="section-title" style="color:var(--green)">🎉 Matches!</span><span style="font-size:12px;color:var(--text3)">${matches.length}</span></div>
+      <div class="card" style="border:1.5px solid var(--green-border);background:rgba(26,122,74,0.04);margin-bottom:1.5rem">
         ${matches.map((m,i)=>`<div class="movie-item match-item" style="animation-delay:${i*80}ms" onclick="openDetail('${m.movie_id}')">
           <div class="m-poster" style="width:56px;height:82px">${pImg(m.movie?.poster_path,56,82,'w92')}</div>
-          <div class="m-info">
-            <div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div>
-            <div class="m-sub">${esc(m.movie?.director||'')}${m.movie?.imdb_rating?' · ★'+m.movie.imdb_rating:''}</div>
-            <div class="tags"><span class="tag tag-green">✓ Both swiped right</span></div>
-          </div>
+          <div class="m-info"><div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div><div class="m-sub">${esc(m.movie?.director||'')}${m.movie?.imdb_rating?' · ★'+m.movie.imdb_rating:''}</div><div class="tags"><span class="tag tag-green">✓ Both swiped right</span></div></div>
           <i class="ti ti-chevron-right" style="color:var(--green);font-size:18px;flex-shrink:0;align-self:center"></i>
         </div>`).join('')}
       </div>
     `:''}`;
 }
-
-function renderDiscover(){
-  const keys=Object.keys(S.discoverData);
-  return`
-    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
-    ${S.discoverLoading&&keys.length===0?`<div style="padding:2rem 1rem;text-align:center;color:var(--text3)"><div class="spinner" style="width:24px;height:24px;margin:0 auto 12px"></div>Loading recommendations...</div>`:''}
-    ${keys.map(section=>`
-      <div class="section-head">
-        <span class="section-title">${esc(section)}</span>
-      </div>
-      <div class="discover-row">
-        ${(S.discoverData[section]||[]).map(m=>{
-          const alreadyAdded=S.myMovies.find(w=>w.movie_id===String(m.id));
-          return`<div class="discover-card">
-            <div class="discover-poster">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(m.poster_path)}" loading="lazy" style="width:130px;height:195px;object-fit:cover">`:'🎬'}</div>
-            <div class="discover-title">${esc(m.title||m.name||'')}</div>
-            <div class="discover-rating">★ ${m.vote_average?m.vote_average.toFixed(1):'?'}</div>
-            <button onclick="addDiscoverMovie(${m.id})" style="margin-top:6px;width:100%;padding:6px;border-radius:20px;border:0.5px solid ${alreadyAdded?'var(--green-border)':'var(--border2)'};background:${alreadyAdded?'var(--green-dim)':'transparent'};color:${alreadyAdded?'var(--green)':'var(--text2)'};font-family:DM Sans,sans-serif;font-size:12px;cursor:pointer;font-weight:500" id="disc-${m.id}">
-              ${alreadyAdded?'✓ Added':'+ Add'}
-            </button>
-          </div>`;
-        }).join('')}
-      </div>
-    `).join('')}
-    ${keys.length===0&&!S.discoverLoading?`<div class="empty"><i class="ti ti-compass"></i><p>Pull down to load recommendations</p></div>`:''}`;
-}
-
-window.addDiscoverMovie=async function(tmdbId){
-  const btn=document.getElementById('disc-'+tmdbId);
-  if(btn){btn.textContent='...';btn.style.opacity='.7';}
-  const full=await fetchMovieDetails(String(tmdbId));
-  if(full)await addToWatchlist(full);
-  const btn2=document.getElementById('disc-'+tmdbId);
-  if(btn2){btn2.textContent='✓ Added';btn2.style.background='var(--green-dim)';btn2.style.color='var(--green)';btn2.style.borderColor='var(--green-border)';}
-};
 
 function renderProfile(){
   const hasPartner=!!(S.playlist?.partner_id);
@@ -1692,7 +1918,7 @@ function render(){
   hideSplash();
   if(S.modal==='add')setTimeout(()=>{document.getElementById('sInput')?.focus();},80);
   if(S.modal==='partner')setTimeout(()=>{document.getElementById('pInput')?.focus();},80);
-  if(S.tab==='swipe'&&S.swipeStarted&&!S.partnerView)setTimeout(initSwipeGestures,150);
+  if(S.tab==='swipe'&&S.swipeStarted){setTimeout(initSwipeGestures,150);}
 }
 
 // GLOBALS
@@ -1702,26 +1928,14 @@ window.shareApp=async function(){
   else{navigator.clipboard?.writeText(text).then(()=>toast('Copied to clipboard!'));}
 };
 window.tapPartnerSwipe=function(movieId,liked){
-  const card=document.getElementById('swipeCardPartner');
-  if(card){
-    card.style.transition='transform .3s,opacity .3s';
-    card.style.transform=liked?'translateX(150%) rotate(15deg)':'translateX(-150%) rotate(-15deg)';
-    card.style.opacity='0';
-    setTimeout(()=>doPartnerSwipe(movieId,liked),280);
-  } else {
-    doPartnerSwipe(movieId,liked);
-  }
+  var card=document.getElementById('swipeCardP');
+  if(card){card.style.transition='transform .3s,opacity .3s';card.style.transform=liked?'translateX(150%) rotate(15deg)':'translateX(-150%) rotate(-15deg)';card.style.opacity='0';setTimeout(function(){doPartnerSwipe(movieId,liked);},280);}
+  else{doPartnerSwipe(movieId,liked);}
 };
 window.tapSwipe=function(movieId,liked){
-  const card=document.getElementById('swipeCard');
-  if(card){
-    card.style.transition='transform .3s,opacity .3s';
-    card.style.transform=liked?'translateX(150%) rotate(15deg)':'translateX(-150%) rotate(-15deg)';
-    card.style.opacity='0';
-    setTimeout(()=>doSwipe(movieId,liked,false),280);
-  } else {
-    doSwipe(movieId,liked,false);
-  }
+  var card=document.getElementById('swipeCard');
+  if(card){card.style.transition='transform .3s,opacity .3s';card.style.transform=liked?'translateX(150%) rotate(15deg)':'translateX(-150%) rotate(-15deg)';card.style.opacity='0';setTimeout(function(){doSwipe(movieId,liked,false);},280);}
+  else{doSwipe(movieId,liked,false);}
 };
 window.setTab=t=>{
   S.tab=t;
