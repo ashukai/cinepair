@@ -44,7 +44,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .header{padding:max(1.5rem,calc(var(--sat) + 0.6rem)) 1rem .5rem;display:flex;align-items:center;justify-content:space-between}
 .logo{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px;color:var(--text)}
 .logo em{color:var(--accent-soft);font-style:normal}
-.section-head{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem .4rem}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:.25rem 1rem .25rem}
 .section-title{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.6px;text-transform:uppercase}
 .card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);margin:0 1rem .75rem;overflow:hidden}
 .card-pad{padding:1.25rem}
@@ -109,14 +109,14 @@ input::placeholder{color:var(--text3)}
 .mood-btn{padding:1rem;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-align:left;transition:all .15s;display:flex;flex-direction:column;gap:5px}
 .mood-btn:active{transform:scale(.97)}
 .mood-btn.wide{grid-column:span 2}
-.swipe-inner{background:var(--surface2);border-radius:var(--radius-sm);padding:1.5rem 1rem;text-align:center}
-.swipe-poster{width:140px;height:210px;border-radius:var(--radius);background:var(--surface3);margin:0 auto 1.25rem;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:60px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.swipe-inner{background:var(--surface2);border-radius:var(--radius-sm);padding:1rem;text-align:center}
+.swipe-poster{width:110px;height:165px;border-radius:var(--radius);background:var(--surface3);margin:0 auto 1rem;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:48px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 .swipe-poster img{width:100%;height:100%;object-fit:cover}
-.prog-wrap{max-width:160px;margin:0 auto .75rem}
+.prog-wrap{max-width:160px;margin:0 auto .5rem}
 .prog-lbl{font-size:12px;color:var(--text3);margin-bottom:5px}
 .prog-bar{height:2px;background:var(--surface3);border-radius:2px;overflow:hidden}
 .prog-fill{height:100%;background:var(--accent-soft);border-radius:2px;transition:width .3s}
-.swipe-btns{display:flex;justify-content:center;gap:3rem;margin-top:1.25rem}
+.swipe-btns{display:flex;justify-content:center;gap:3rem;margin-top:.875rem}
 .swipe-btn{width:68px;height:68px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:transform .1s;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .swipe-btn:active{transform:scale(.88)}
 .s-nope{background:#2a1515;color:var(--red);border:0.5px solid rgba(184,85,85,.3)}
@@ -715,9 +715,9 @@ function renderSwipe(){
         ${!myDone&&cur?`
           <div class="swipe-inner">
             <div class="swipe-poster">${pImg(cur.movie?.poster_path,140,210,'w342')}</div>
-            <div style="font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3">${esc(cur.movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
+            <div style="font-size:17px;font-weight:500;margin-bottom:3px;line-height:1.3">${esc(cur.movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
             <div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${esc(cur.movie?.genre||'')}${cur.movie?.runtime?' · '+esc(cur.movie.runtime):''}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.65;max-width:300px;margin:0 auto .875rem">${esc(cur.movie?.plot||'')}</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.55;max-width:300px;margin:0 auto .625rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(cur.movie?.plot||'')}</div>
             <div class="prog-wrap">
               <div class="prog-lbl">${S.swipeIdx+1} of ${S.swipeQueue.length}</div>
               <div class="prog-bar"><div class="prog-fill" style="width:${Math.round((S.swipeIdx/S.swipeQueue.length)*100)}%"></div></div>
@@ -737,9 +737,9 @@ function renderSwipe(){
           <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:1rem">${hasPartner?'Ask '+esc(pName)+' to open CinePair and swipe':'Pass the phone to '+esc(pName)} 📱</p>
           <div class="swipe-inner">
             <div class="swipe-poster">${pImg(partnerUnswiped[0].movie?.poster_path,140,210,'w342')}</div>
-            <div style="font-size:18px;font-weight:500;margin-bottom:4px;line-height:1.3">${esc(partnerUnswiped[0].movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(partnerUnswiped[0].movie?.year||'')})</span></div>
+            <div style="font-size:17px;font-weight:500;margin-bottom:3px;line-height:1.3">${esc(partnerUnswiped[0].movie?.title||'')} <span style="font-size:13px;font-weight:400;color:var(--text2)">(${esc(partnerUnswiped[0].movie?.year||'')})</span></div>
             <div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${esc(partnerUnswiped[0].movie?.genre||'')}${partnerUnswiped[0].movie?.imdb_rating?' · ★ '+partnerUnswiped[0].movie.imdb_rating:''}</div>
-            <div style="font-size:13px;color:var(--text2);line-height:1.65;max-width:300px;margin:0 auto .875rem">${esc(partnerUnswiped[0].movie?.plot||'')}</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.55;max-width:300px;margin:0 auto .625rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(partnerUnswiped[0].movie?.plot||'')}</div>
             <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">${partnerUnswiped.length} remaining</p>
             <div class="swipe-btns">
               <button class="swipe-btn s-nope" onclick="doPartnerSwipe('${partnerUnswiped[0].movie_id}',false)"><i class="ti ti-x"></i></button>
