@@ -395,7 +395,14 @@ async function toggleWatched(movieId,watched,e){
 async function removeFromWatchlist(movieId,e){
   if(e)e.stopPropagation();
   await sb.from('watchlist').delete().eq('user_id',S.user.id).eq('movie_id',movieId);
+  // also remove from together playlist and any swipes
+  if(S.playlist){
+    await sb.from('together_movies').delete().eq('playlist_id',S.playlist.id).eq('movie_id',movieId);
+    await sb.from('swipes').delete().eq('playlist_id',S.playlist.id).eq('movie_id',movieId);
+    await loadTogetherMovies();await loadSwipes();
+  }
   await loadWatchlist();S.detail=null;render();
+  toast('Removed from your list and Together');
 }
 async function addToTogether(movieId,e){
   if(e)e.stopPropagation();
