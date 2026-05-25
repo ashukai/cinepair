@@ -402,15 +402,20 @@ async function addToWatchlist(movie){
     const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
     if(we){toast('Error: '+we.message);return;}
     await loadMyMovies();
-    // Don't close modal — let user keep adding movies
-    // Just show toast and update the + button state
     toast(m.title+' added!');
-    // Re-render just the result item to show it's added (change + to checkmark)
+    // Mark all result items matching this movie id with green checkmark
     const allResults=document.querySelectorAll('.result-item');
     allResults.forEach(el=>{
-      if(el.textContent.includes(m.title)){
+      if(el.getAttribute('onclick')&&el.getAttribute('onclick').includes(m.id)){
         const addBtn=el.querySelector('.r-add');
-        if(addBtn){addBtn.innerHTML='<i class="ti ti-check"></i>';addBtn.style.background='var(--green-dim)';addBtn.style.borderColor='var(--green-border)';addBtn.style.color='var(--green)';}
+        if(addBtn){
+          addBtn.innerHTML='<i class="ti ti-check" style="font-size:15px"></i>';
+          addBtn.style.background='#e2f5ec';
+          addBtn.style.borderColor='rgba(26,122,74,0.3)';
+          addBtn.style.color='#1a7a4a';
+          addBtn.style.transition='all .2s';
+        }
+        el.style.opacity='0.7';
       }
     });
   }catch(e){toast('Error: '+e.message);}
