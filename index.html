@@ -92,7 +92,7 @@ input::placeholder{color:var(--text3)}
 .modal-drag{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 0;flex-shrink:0}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1rem .75rem;flex-shrink:0}
 .modal-title{font-size:17px;font-weight:500}
-.modal-close{width:32px;height:32px;border-radius:50%;border:none;background:var(--surface2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.modal-close{width:40px;height:40px;border-radius:50%;border:none;background:var(--surface2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .modal-body{overflow-y:auto;flex:1;padding:0 1rem}
 .modal-body::-webkit-scrollbar{display:none}
 .search-wrap{display:flex;gap:8px;padding:0 1rem .75rem;flex-shrink:0}
@@ -343,7 +343,14 @@ async function doSearch(){
     if(rEl2)rEl2.innerHTML='<p style="font-size:13px;color:var(--red);padding:10px 0">Search failed</p>';
   }
 }
-function onSearchInput(){clearTimeout(_searchTimer);_searchTimer=setTimeout(doSearch,400);}
+function onSearchInput(){
+  clearTimeout(_searchTimer);
+  const el=document.getElementById('sInput');
+  const q=(el?el.value:'').trim();
+  // Instant search for 3+ chars, slight delay for shorter
+  const delay=q.length>=3?300:600;
+  _searchTimer=setTimeout(doSearch,delay);
+}
 window.addToWatchlistEnc=enc=>{try{addToWatchlist(JSON.parse(decodeURIComponent(enc)));}catch(e){toast('Error');}};
 
 async function fetchMovieDetails(id){
@@ -376,7 +383,18 @@ async function addToWatchlist(movie){
     if(existing){toast('Already in your list');return;}
     const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
     if(we){toast('Error: '+we.message);return;}
-    await loadMyMovies();S.modal=null;render();toast(m.title+' added!');
+    await loadMyMovies();
+    // Don't close modal — let user keep adding movies
+    // Just show toast and update the + button state
+    toast(m.title+' added!');
+    // Re-render just the result item to show it's added (change + to checkmark)
+    const allResults=document.querySelectorAll('.result-item');
+    allResults.forEach(el=>{
+      if(el.textContent.includes(m.title)){
+        const addBtn=el.querySelector('.r-add');
+        if(addBtn){addBtn.innerHTML='<i class="ti ti-check"></i>';addBtn.style.background='var(--green-dim)';addBtn.style.borderColor='var(--green-border)';addBtn.style.color='var(--green)';}
+      }
+    });
   }catch(e){toast('Error: '+e.message);}
   finally{_adding=false;}
 }
@@ -798,8 +816,8 @@ function savePartnerName(){
 }
 
 function renderAddModal(){
-  return`<div class="modal-overlay">
-    <div class="modal-sheet" onclick="event.stopPropagation()">
+  return`<div class="modal-overlay" onclick="if(event.target.classList.contains('modal-overlay'))closeModal()">
+    <div class="modal-sheet" id="addModalSheet" onclick="event.stopPropagation()">
       <div class="modal-drag"></div>
       <div class="modal-head">
         <div class="modal-title">Search movies</div>
@@ -850,8 +868,8 @@ function renderA2hs(){
     return`<div class="a2hs">
       <div class="a2hs-icon">C<em style="color:var(--accent-soft);font-style:normal">P</em></div>
       <div class="a2hs-text">
-        <div class="a2hs-title">Add CinePair to home screen</div>
-        <div class="a2hs-sub">Tap <i class="ti ti-share" style="font-size:12px"></i> then "Add to Home Screen"</div>
+        <div class="a2hs-title">Install CinePair</div>
+        <div class="a2hs-sub">In Safari: tap <span style="display:inline-block;background:var(--surface3);border-radius:4px;padding:1px 5px;font-size:11px">&#x2b06; Share</span> then <b>Add to Home Screen</b></div>
       </div>
       <button class="a2hs-close" onclick="dismissA2hs()"><i class="ti ti-x"></i></button>
     </div>`;
@@ -951,6 +969,21 @@ window.doSignUp=()=>{
 })();
 </script>
 <script>
+// Swipe down to dismiss modal
+document.addEventListener('touchstart',e=>{
+  const sheet=document.getElementById('addModalSheet');
+  if(!sheet)return;
+  const startY=e.touches[0].clientY;
+  const startScroll=sheet.querySelector('.modal-body')?.scrollTop||0;
+  function onMove(e2){
+    const dy=e2.touches[0].clientY-startY;
+    if(dy>60&&startScroll<=0){closeModal();}
+  }
+  function onEnd(){document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}
+  document.addEventListener('touchmove',onMove,{passive:true});
+  document.addEventListener('touchend',onEnd);
+},{passive:true});
+
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('/sw.js').then(reg=>{
     reg.addEventListener('updatefound',()=>{
