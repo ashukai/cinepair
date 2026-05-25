@@ -12,9 +12,16 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="https://mshcjeibgyhruxddjwxy.supabase.co">
+<link rel="dns-prefetch" href="https://api.themoviedb.org">
+<link rel="dns-prefetch" href="https://image.tmdb.org">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet"></noscript>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"></noscript>
 <style>
 :root{
   --bg:#f2f4f7;--surface:#ffffff;--surface2:#f7f8fa;--surface3:#eef0f4;
@@ -161,9 +168,13 @@ input::placeholder{color:var(--text3)}
 </style>
 </head>
 <body>
+<div id="splash" style="position:fixed;inset:0;background:#f2f4f7;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s">
+  <div style="font-family:Georgia,serif;font-size:52px;letter-spacing:-.5px;margin-bottom:.25rem">Cine<span style="color:#c9962a">Pair</span></div>
+  <div style="font-size:14px;color:#9898b0;letter-spacing:.3px">Your movies. Your perfect match.</div>
+</div>
 <div id="app"></div>
 <div class="toast" id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
 <script>
 const SUPABASE_URL='https://mshcjeibgyhruxddjwxy.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaGNqZWliZ3locnV4ZGRqd3h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mzc2NDksImV4cCI6MjA5NTIxMzY0OX0.IOijSeR9eCwaQ687VM8OyuGPvKJSN-Z77QxJuFAlAGs';
@@ -986,6 +997,9 @@ function render(){
   let detail=S.detail?renderDetail():'';
   const a2hs=renderA2hs();
   app.innerHTML=`<div class="screen">${content}</div>${nav}${modal}${detail}${a2hs}`;
+  // Hide splash screen on first render
+  const splash=document.getElementById('splash');
+  if(splash&&splash.style.opacity!=='0'){splash.style.opacity='0';setTimeout(()=>splash.remove(),320);}
   if(S.modal==='add')setTimeout(()=>{document.getElementById('sInput')?.focus();},80);
   if(S.modal==='partner')setTimeout(()=>{document.getElementById('pInput')?.focus();},80);
 }
