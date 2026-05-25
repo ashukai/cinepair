@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- CinePair v9 - built May 2026 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -26,7 +27,7 @@
   --nav-h:62px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
 #app{height:100%;position:relative}
 .screen{position:absolute;top:0;left:0;right:0;bottom:calc(var(--nav-h) + var(--sab));overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
 .screen::-webkit-scrollbar{display:none}
@@ -43,12 +44,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* HEADER */
 .header{padding-top:max(1.5rem,calc(var(--sat) + 0.6rem));padding-right:1rem;padding-bottom:.5rem;padding-left:1rem;display:flex;align-items:center;justify-content:space-between;}
-.logo{font-family:'DM Serif Display',serif;font-size:24px;letter-spacing:-.5px;color:var(--text)}
+.logo{font-family:'DM Serif Display',serif;font-size:26px;letter-spacing:-.5px;color:var(--text)}
 .logo em{color:var(--accent-soft);font-style:normal}
 
 /* SECTION */
 .section-head{display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem .4rem;}
-.section-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase}
+.section-title{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.6px;text-transform:uppercase}
 
 /* CARD */
 .card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);margin:0 1rem .75rem;overflow:hidden;}
@@ -76,7 +77,7 @@ input::placeholder{color:var(--text3)}
 
 /* TAGS */
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
-.tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap}
+.tag{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500;white-space:nowrap}
 .tag-gold{background:var(--accent-dim);color:var(--accent-soft)}
 .tag-green{background:var(--green-dim);color:var(--green)}
 .tag-gray{background:var(--surface3);color:var(--text3)}
@@ -86,12 +87,12 @@ input::placeholder{color:var(--text3)}
 .movie-item{display:flex;gap:13px;align-items:flex-start;padding:14px 1rem;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .12s;}
 .movie-item:last-child{border-bottom:none}
 .movie-item:active{background:var(--surface2)}
-.m-poster{width:52px;height:76px;border-radius:9px;background:var(--surface3);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+.m-poster{width:56px;height:82px;border-radius:9px;background:var(--surface3);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 2px 8px rgba(0,0,0,.4);}
 .m-poster img{width:100%;height:100%;object-fit:cover}
 .m-info{flex:1;min-width:0}
-.m-title{font-size:15px;font-weight:500;line-height:1.3;color:var(--text)}
+.m-title{font-size:16px;font-weight:500;line-height:1.3;color:var(--text)}
 .m-year{font-weight:400;color:var(--text2);font-size:13px}
-.m-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.m-sub{font-size:13px;color:var(--text2);margin-top:3px}
 .m-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .m-chevron{color:var(--text3);font-size:18px;flex-shrink:0;padding-top:2px;align-self:center}
 
@@ -429,12 +430,18 @@ async function createPlaylistWith(partnerId){
   await loadTogetherPlaylist();toast('Connected!');render();
 }
 async function createSoloPlaylist(){
-  if(S.playlist){toast('Already have a Together playlist');return;}
-  // create playlist with self as both owner and no partner (null)
-  const{data,error}=await sb.from('together_playlists').insert({owner_id:S.user.id,partner_id:null,name:'Our List'}).select().single();
-  if(error){toast('Error: '+error.message);return;}
-  S.playlist=data;S.modal=null;
-  await loadTogetherPlaylist();toast('Together playlist created!');render();
+  if(S.playlist){
+    toast('Together playlist already exists!');
+    S.tab='together';render();return;
+  }
+  try{
+    const{data,error}=await sb.from('together_playlists').insert({owner_id:S.user.id,name:'Our List'}).select().single();
+    if(error){toast('Error: '+error.message);return;}
+    S.playlist=data;S.modal=null;
+    await loadTogetherPlaylist();
+    toast('Together playlist created!');
+    S.tab='together';render();
+  }catch(e){toast('Error: '+e.message);}
 }
 
 // SWIPE
@@ -478,7 +485,7 @@ function movieRow(item,listType){
   const inT=!!(S.playlist&&S.togetherMovies.find(t=>t.movie_id===mid));
   const watched=item.watched||false;
   return`<div class="movie-item" onclick="openDetail('${mid}')">
-    <div class="m-poster" style="width:52px;height:76px">${pImg(m.poster_path,52,76,'w92')}</div>
+    <div class="m-poster" style="width:56px;height:82px">${pImg(m.poster_path,52,76,'w92')}</div>
     <div class="m-info" style="flex:1;min-width:0">
       <div class="m-title">${esc(m.title)} <span class="m-year">(${esc(m.year)})</span></div>
       <div class="m-sub">${esc(m.director||'')}${m.runtime?' · '+esc(m.runtime):''}${m.imdb_rating?' · ★'+m.imdb_rating:''}</div>
@@ -593,34 +600,33 @@ function renderMy(){
 
 function renderTogether(){
   const pName=S.playlist?(S.playlist.owner_id===S.user.id?S.playlist.partner?.username:S.playlist.owner?.username):null;
-  const hasPartner=S.playlist&&S.playlist.partner_id;
-  return`
-    <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
-    ${!S.playlist?`
-      <div class="card card-pad" style="margin-top:.5rem">
-        <div style="font-size:16px;font-weight:500;margin-bottom:.5rem">Together playlist</div>
-        <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Add movies from your list and swipe together to find what to watch.</p>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button class="btn btn-gold" onclick="createSoloPlaylist()"><i class="ti ti-device-mobile"></i> Use one phone (no partner account)</button>
-          <button class="btn" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
-        </div>
+  const hasPartner=!!(S.playlist&&S.playlist.partner_id);
+  if(!S.playlist){
+    return`<div class="header"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="card card-pad" style="margin-top:.5rem">
+      <div style="font-size:16px;font-weight:500;margin-bottom:.75rem">Together playlist</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Add movies from your list and swipe to find what to watch together.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-gold" onclick="createSoloPlaylist()"><i class="ti ti-device-mobile"></i> Use one phone — no account needed</button>
+        <button class="btn" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
       </div>
-    `:`
-      <div class="section-head">
-        <span class="section-title">${hasPartner?'With '+esc(pName||'partner'):'My Together list'}</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${!hasPartner?`<button class="btn" style="padding:6px 12px;font-size:12px" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Add partner</button>`:''}
-          <span style="font-size:12px;color:var(--text3)">${S.togetherMovies.length} movies</span>
-        </div>
+    </div>`;
+  }
+  return`<div class="header"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="section-head">
+      <span class="section-title">${hasPartner?'With '+esc(pName||'partner'):'Together list'}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${!hasPartner?`<button class="btn" style="padding:5px 11px;font-size:12px" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Add partner</button>`:''}
+        <span style="font-size:12px;color:var(--text3)">${S.togetherMovies.length} movies</span>
       </div>
-      <div class="card">
-        ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist<br>using "+ Together"</p></div>`:S.togetherMovies.map(m=>movieRow(m,'together')).join('')}
-      </div>
-    `}`;
+    </div>
+    <div class="card">
+      ${S.togetherMovies.length===0?`<div class="empty"><i class="ti ti-users"></i><p>Add movies from your watchlist<br>using "+ Together"</p></div>`:S.togetherMovies.map(m=>movieRow(m,'together')).join('')}
+    </div>`;
 }
 
 function renderSwipe(){
-  if(!S.playlist)return`
+  if(!S.playlist){return`
     <div class="header"><div class="logo">Cine<em>Pair</em></div></div>
     <div class="empty" style="margin-top:5rem"><i class="ti ti-cards"></i><p>Set up your Together playlist first<br><span style="font-size:12px;margin-top:6px;display:block;color:var(--text3)">Go to the Together tab</span></p></div>`;
   const hasPartner=!!(S.playlist.partner_id);
@@ -689,7 +695,7 @@ function renderSwipe(){
       <div class="card match-card">
         ${matches.map(m=>`
           <div class="movie-item" onclick="openDetail('${m.movie_id}')">
-            <div class="m-poster" style="width:52px;height:76px">${pImg(m.movie?.poster_path,52,76,'w92')}</div>
+            <div class="m-poster" style="width:56px;height:82px">${pImg(m.movie?.poster_path,52,76,'w92')}</div>
             <div class="m-info">
               <div class="m-title">${esc(m.movie?.title||'')} <span class="m-year">(${esc(m.movie?.year||'')})</span></div>
               <div class="m-sub">${esc(m.movie?.director||'')}${m.movie?.imdb_rating?' · ★'+m.movie.imdb_rating:''}</div>
@@ -878,6 +884,20 @@ window.doSignUp=()=>{
   });
 })();
 </script>
-<script>if('serviceWorker'in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
+<script>if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('/sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{
+      const w=reg.installing;
+      w.addEventListener('statechange',()=>{
+        if(w.state==='installed'&&navigator.serviceWorker.controller){
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data==='reload')window.location.reload();
+  });
+}</script>
 </body>
 </html>
