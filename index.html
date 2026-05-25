@@ -36,7 +36,7 @@ body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-fam
 .nav-btn i{font-size:21px;line-height:1}
 .nav-btn span{font-size:10px;font-weight:500;letter-spacing:.3px}
 .nav-btn.active{color:var(--accent-soft)}
-.header{padding-top:max(1.5rem, calc(var(--sat) + 0.75rem));padding-right:1rem;padding-bottom:.75rem;padding-left:1rem;display:flex;align-items:center;justify-content:space-between;}
+.header{padding-top:max(1.5rem,calc(var(--sat) + 0.75rem));padding-right:1rem;padding-bottom:.75rem;padding-left:1rem;display:flex;align-items:center;justify-content:space-between;}
 .logo{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-.3px;color:var(--text)}
 .logo em{color:var(--accent-soft);font-style:normal}
 .section-head{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem .5rem;}
@@ -141,7 +141,7 @@ input::placeholder{color:var(--text3)}
 .spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-row{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:13px;padding:12px 0}
-.toast{position:fixed;bottom:calc(var(--nav-h) + var(--sab) + 12px);left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);border-radius:20px;padding:10px 20px;font-size:13px;color:var(--text);z-index:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .22s;}
+.toast{position:fixed;bottom:calc(var(--nav-h) + var(--sab) + 12px);left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);border-radius:20px;padding:10px 20px;font-size:13px;color:var(--text);z-index:500;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .22s;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{opacity:1}
 </style>
 </head>
@@ -157,13 +157,16 @@ const TMDB_IMG='https://image.tmdb.org/t/p/w185';
 const TMDB_BASE='https://api.themoviedb.org/3';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+// guard against double-tap / multiple simultaneous adds
+let _adding=false;
+
 let S={
   user:null,profile:null,tab:'my',
   watchlist:[],togetherMovies:[],playlist:null,
   swipeQueue:[],swipeIdx:0,partnerView:false,
   mySwipes:{},partnerSwipes:{},
   filter:'all',modal:null,
-  searchQ:'',searchResults:[],isSearching:false,
+  searchQ:'',isSearching:false,
   authTab:'login',authLoading:false,authErr:'',authOk:'',
   partnerQ:'',partnerResult:null,partnerMsg:'',
 };
@@ -171,11 +174,11 @@ let S={
 function toast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;el.classList.add('show');
-  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function escJ(o){return JSON.stringify(o).replace(/"/g,'&quot;');}
 
+// AUTH
 async function signUp(email,pass,username){
   S.authLoading=true;S.authErr='';render();
   const{data:ex}=await sb.from('profiles').select('id').eq('username',username).maybeSingle();
@@ -201,10 +204,12 @@ async function signIn(email,pass){
 }
 async function signOut(){
   await sb.auth.signOut();
-  Object.assign(S,{user:null,profile:null,watchlist:[],togetherMovies:[],playlist:null,mySwipes:{},partnerSwipes:{},swipeQueue:[],swipeIdx:0});
+  Object.assign(S,{user:null,profile:null,watchlist:[],togetherMovies:[],playlist:null,
+    mySwipes:{},partnerSwipes:{},swipeQueue:[],swipeIdx:0,modal:null});
   render();
 }
 
+// DATA LOADING
 async function loadProfile(){
   if(!S.user)return;
   const{data}=await sb.from('profiles').select('*').eq('id',S.user.id).single();
@@ -238,11 +243,11 @@ async function loadSwipes(){
   });
 }
 
+// SEARCH — updates DOM directly, never re-renders modal
 async function doSearch(){
   const el=document.getElementById('sInput');
   const q=(el?el.value:'').trim();
   if(!q){toast('Type a movie name first');return;}
-  S.searchQ=q;
   const resultsEl=document.getElementById('searchResults');
   if(resultsEl)resultsEl.innerHTML='<div class="loading-row"><div class="spinner"></div> Searching...</div>';
   try{
@@ -256,26 +261,32 @@ async function doSearch(){
       plot:m.overview||'',genre:null,director:null,runtime:null
     }));
     const el2=document.getElementById('searchResults');
-    if(el2){
-      if(results.length===0){
-        el2.innerHTML='<p style="font-size:13px;color:var(--text3);padding:10px 0">No results found</p>';
-      }else{
-        el2.innerHTML=results.map(m=>`
-          <div class="result-item" onclick='addToWatchlist(${JSON.stringify(m).replace(/'/g,"&#39;")})'>
-            <div class="r-poster">${m.poster_path?`<img src="${TMDB_IMG}${esc(m.poster_path)}" loading="lazy">`:'🎬'}</div>
-            <div class="r-info">
-              <div class="r-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
-              <div class="r-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,55))}${(m.plot||'').length>55?'...':''}</div>
-            </div>
-            <div class="r-add"><i class="ti ti-plus"></i></div>
-          </div>`).join('');
-      }
+    if(!el2)return;
+    if(results.length===0){
+      el2.innerHTML='<p style="font-size:13px;color:var(--text3);padding:10px 0">No results found — try another title</p>';
+    }else{
+      el2.innerHTML=results.map(m=>{
+        const safeM=encodeURIComponent(JSON.stringify(m));
+        return`<div class="result-item" onclick="addToWatchlistEncoded('${safeM}')">
+          <div class="r-poster">${m.poster_path?`<img src="${TMDB_IMG}${esc(m.poster_path)}" loading="lazy">`:'🎬'}</div>
+          <div class="r-info">
+            <div class="r-title">${esc(m.title)} <span style="font-weight:400;color:var(--text2)">(${esc(m.year)})</span></div>
+            <div class="r-meta">${m.imdb_rating?'★ '+m.imdb_rating+'  ':''}${esc((m.plot||'').slice(0,60))}${(m.plot||'').length>60?'...':''}</div>
+          </div>
+          <div class="r-add"><i class="ti ti-plus"></i></div>
+        </div>`;
+      }).join('');
     }
   }catch(e){
     const el2=document.getElementById('searchResults');
-    if(el2)el2.innerHTML='<p style="font-size:13px;color:var(--red);padding:10px 0">Search failed: '+e.message+'</p>';
+    if(el2)el2.innerHTML=`<p style="font-size:13px;color:var(--red);padding:10px 0">Search failed: ${e.message}</p>`;
   }
 }
+
+// safe wrapper — avoids JSON quoting issues in onclick
+window.addToWatchlistEncoded=function(encoded){
+  try{addToWatchlist(JSON.parse(decodeURIComponent(encoded)));}catch(e){toast('Error parsing movie');}
+};
 
 async function fetchMovieDetails(id){
   try{
@@ -295,24 +306,37 @@ async function fetchMovieDetails(id){
 }
 
 async function addToWatchlist(movie){
+  if(_adding){toast('Please wait...');return;}
   if(S.watchlist.find(w=>w.movie_id===movie.id)){toast('Already in your list');return;}
+  _adding=true;
   toast('Adding...');
   try{
     const full=await fetchMovieDetails(movie.id);
     const m=full||movie;
+    // upsert movie record
     const{error:me}=await sb.from('movies').upsert({
       id:m.id,title:m.title,year:m.year,director:m.director,
       genre:m.genre,runtime:m.runtime,imdb_rating:m.imdb_rating,
       plot:m.plot,poster_path:m.poster_path
     },{onConflict:'id'});
-    if(me){toast('Movie DB error: '+me.message);return;}
+    if(me){toast('Movie error: '+me.message);return;}
+    // check not already in watchlist (race condition guard)
+    const{data:existing}=await sb.from('watchlist').select('id').eq('user_id',S.user.id).eq('movie_id',m.id).maybeSingle();
+    if(existing){toast('Already in your list');return;}
+    // insert watchlist row
     const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
     if(we){toast('Watchlist error: '+we.message);return;}
     await loadWatchlist();
-    S.modal=null;S.searchResults=[];S.searchQ='';
-    render();toast(m.title+' added!');
-  }catch(e){toast('Error: '+e.message);}
+    S.modal=null;
+    render();
+    toast(m.title+' added!');
+  }catch(e){
+    toast('Error: '+e.message);
+  }finally{
+    _adding=false;
+  }
 }
+
 async function toggleWatched(movieId,watched){
   await sb.from('watchlist').update({watched:!watched}).eq('user_id',S.user.id).eq('movie_id',movieId);
   await loadWatchlist();render();
@@ -321,11 +345,11 @@ async function removeFromWatchlist(movieId){
   await sb.from('watchlist').delete().eq('user_id',S.user.id).eq('movie_id',movieId);
   await loadWatchlist();render();
 }
-async function addToTogether(item){
+async function addToTogether(movieId){
   if(!S.playlist){toast('Set up a Together playlist first');return;}
-  const movieId=item.movie_id||item.id;
   if(S.togetherMovies.find(m=>m.movie_id===movieId)){toast('Already in Together');return;}
-  await sb.from('together_movies').insert({playlist_id:S.playlist.id,movie_id:movieId,added_by:S.user.id});
+  const{error}=await sb.from('together_movies').insert({playlist_id:S.playlist.id,movie_id:movieId,added_by:S.user.id});
+  if(error){toast('Error: '+error.message);return;}
   await loadTogetherMovies();toast('Added to Together!');render();
 }
 async function removeFromTogether(movieId){
@@ -334,6 +358,7 @@ async function removeFromTogether(movieId){
   await loadTogetherMovies();await loadSwipes();render();
 }
 
+// PARTNER
 async function doPartnerSearch(){
   const el=document.getElementById('pInput');
   const q=(el?el.value:'').trim();
@@ -351,6 +376,7 @@ async function createPlaylistWith(partnerId){
   await loadTogetherPlaylist();toast('Together playlist created!');render();
 }
 
+// SWIPE
 function startSwipe(){
   const pool=S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===undefined);
   S.swipeQueue=[...pool].sort(()=>Math.random()-.5);S.swipeIdx=0;render();
@@ -360,7 +386,7 @@ async function doSwipe(movieId,liked){
   S.mySwipes[movieId]=liked;S.swipeIdx++;
   if(liked&&S.partnerSwipes[movieId]===true){
     const m=S.togetherMovies.find(t=>t.movie_id===movieId);
-    toast('Match! '+( m?.movie?.title||'Movie'));
+    toast('Match: '+(m?.movie?.title||'Movie')+'!');
   }
   render();
 }
@@ -370,12 +396,13 @@ async function doPartnerSwipe(movieId,liked){
   S.partnerSwipes[movieId]=liked;
   if(liked&&S.mySwipes[movieId]===true){
     const m=S.togetherMovies.find(t=>t.movie_id===movieId);
-    toast('Match! '+(m?.movie?.title||'Movie'));
+    toast('Match: '+(m?.movie?.title||'Movie')+'!');
   }
   render();
 }
 function getMatches(){return S.togetherMovies.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true);}
 
+// RENDER HELPERS
 function pImg(path,w,h){
   if(path)return`<img src="${TMDB_IMG}${esc(path)}" alt="" loading="lazy" style="width:${w}px;height:${h}px;object-fit:cover">`;
   return'🎬';
@@ -401,13 +428,14 @@ function movieRow(item,listType){
     <div class="m-actions">
       ${listType==='my'?`
         <button class="btn-sm ${watched?'done':''}" onclick="toggleWatched('${mid}',${watched})">${watched?'Seen':'Mark seen'}</button>
-        <button class="btn-sm ${inT?'on':''}" onclick="${inT?`removeFromTogether('${mid}')`:`addToTogether(${escJ(item)})`}">${inT?'In Together':'+ Together'}</button>
+        <button class="btn-sm ${inT?'on':''}" onclick="${inT?`removeFromTogether('${mid}')`:`addToTogether('${mid}')`}">${inT?'In Together':'+ Together'}</button>
         <button class="btn-del" onclick="removeFromWatchlist('${mid}')"><i class="ti ti-trash" style="font-size:16px"></i></button>
       `:`<button class="btn-del" onclick="removeFromTogether('${mid}')"><i class="ti ti-trash" style="font-size:16px"></i></button>`}
     </div>
   </div>`;
 }
 
+// SCREENS
 function renderAuth(){
   return`<div class="auth-screen">
     <div class="auth-logo">Cine<em>Pair</em></div>
@@ -503,7 +531,7 @@ function renderSwipe(){
       </div>
       ${S.swipeQueue.length===0?`
         <div style="text-align:center;padding:.5rem 0 1rem">
-          <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Swipe right to keep, left to skip. Movies you both like become matches!</p>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Swipe right to keep, left to skip.<br>Movies you both like become matches!</p>
           ${S.togetherMovies.length===0?`<p style="color:var(--text3);font-size:13px">Add movies to Together first</p>`:`
             <button class="btn btn-gold" onclick="startSwipe()"><i class="ti ti-player-play"></i> Start swiping (${myUnswiped.length} left)</button>
           `}
@@ -676,7 +704,7 @@ window.setFilter=f=>{S.filter=f;render();};
 window.setAuthTab=t=>{S.authTab=t;S.authErr='';S.authOk='';render();};
 window.setPartnerView=v=>{S.partnerView=v;render();};
 window.openModal=m=>{S.modal=m;render();};
-window.closeModal=()=>{S.modal=null;S.searchResults=[];S.searchQ='';render();};
+window.closeModal=()=>{S.modal=null;render();};
 window.doSearch=doSearch;
 window.doPartnerSearch=doPartnerSearch;
 window.doSignOut=signOut;
