@@ -404,8 +404,11 @@ function startSwipe(mood){
 }
 async function doSwipe(mid,liked){
   if(S.playlist)await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});
-  S.mySwipes[mid]=liked;S.qi++;render();
-  setTimeout(attachSwipe,100);
+  S.mySwipes[mid]=liked;S.qi++;
+  // Preload the next-next card image before rendering
+  const upcoming=S.queue[S.qi+1];
+  if(upcoming?.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+upcoming.movie.poster_path;}
+  render();setTimeout(attachSwipe,100);
 }
 async function doPartnerSwipe(mid,liked){
   if(S.playlist?.partner_id){const pid=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:pid,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});}
@@ -611,11 +614,13 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
   const tapFn=isPartner?'tapPSwipe':'tapSwipe';
   return`<div class="swipe-wrap">
     <div class="swipe-stage">
-      ${nxt?`<div class="swipe-bg">${nxt.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(nxt.movie.poster_path)}" style="width:100%;height:100%;object-fit:cover">`:`<div class="swipe-bg-ph">🎬</div>`}</div>`:''}
+      ${nxt?`<div class="swipe-bg" style="overflow:hidden">${nxt.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(nxt.movie.poster_path)}" style="width:100%;height:100%;object-fit:cover;display:block" decoding="async">`:`<div class="swipe-bg-ph">🎬</div>`}</div>`:''}
       <div class="swipe-card" id="${cardId}" data-mid="${cur.movie_id}" style="touch-action:none">
         <div class="swipe-lbl lbl-yes" id="${ly}">WATCH ❤️</div>
         <div class="swipe-lbl lbl-no" id="${ln}">SKIP ✕</div>
-        ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="width:100%;height:220px;object-fit:cover;display:block">`:`<div class="swipe-card-ph">🎬</div>`}
+        <div style="width:100%;height:220px;background:var(--surface3);overflow:hidden;flex-shrink:0;position:relative">
+          ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" decoding="async">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
+        </div>
         <div class="swipe-info">
           <div class="swipe-title">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;color:var(--text2)">(${esc(cur.movie?.year||'')})</span></div>
           <div class="swipe-meta">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
