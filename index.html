@@ -478,9 +478,43 @@ function getMatches(){
 }
 
 // SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
 function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
   if(!card)return;
+  // Clone card to remove all existing event listeners
+  const fresh=card.cloneNode(true);
+  card.parentNode.replaceChild(fresh,card);
+  const c2=document.getElementById('swipeCard');
+  if(!c2)return;
   let startX=0,startY=0,curX=0,curY=0,dragging=false;
   const labelYes=document.getElementById('swipeLabelYes');
   const labelNo=document.getElementById('swipeLabelNo');
@@ -499,33 +533,21 @@ function initSwipeGestures(){
     e.preventDefault();
     const pt=e.touches?e.touches[0]:e;
     curX=pt.clientX-startX;curY=pt.clientY-startY;
+    // Only allow horizontal movement - lock vertical
     const rot=curX*0.08;
-    card.style.transform=`translate(${curX}px,${curY}px) rotate(${rot}deg)`;
-    // Show labels
-    const absX=Math.abs(curX),absY=Math.abs(curY);
-    if(absY>absX&&curY>60){
-      if(labelYes)labelYes.style.opacity='0';
-      if(labelNo)labelNo.style.opacity='0';
-      if(labelWatch)labelWatch.style.opacity=Math.min(1,(curY-60)/60).toString();
-    } else {
-      if(labelWatch)labelWatch.style.opacity='0';
-      if(labelYes)labelYes.style.opacity=curX>30?Math.min(1,(curX-30)/80).toString():'0';
-      if(labelNo)labelNo.style.opacity=curX<-30?Math.min(1,(-curX-30)/80).toString():'0';
-    }
+    card.style.transform=`translateX(${curX}px) rotate(${rot}deg)`;
+    // Show labels based on horizontal only
+    if(labelYes)labelYes.style.opacity=curX>30?Math.min(1,(curX-30)/80).toString():'0';
+    if(labelNo)labelNo.style.opacity=curX<-30?Math.min(1,(-curX-30)/80).toString():'0';
+    if(labelWatch)labelWatch.style.opacity='0';
   }
   function onEnd(){
     if(!dragging)return;
     dragging=false;
     card.classList.remove('dragging');
     card.style.transition='transform .3s, opacity .3s';
-    const absX=Math.abs(curX),absY=Math.abs(curY);
     const THRESH=90;
-    if(absY>absX&&curY>THRESH){
-      // Swipe up = watched
-      card.style.transform=`translateY(-120%) rotate(0deg)`;
-      card.style.opacity='0';
-      setTimeout(()=>doSwipe(movieId,false,true),300);
-    } else if(curX>THRESH){
+    if(curX>THRESH){
       // Swipe right = like
       card.style.transform=`translateX(140%) rotate(15deg)`;
       card.style.opacity='0';
@@ -537,10 +559,9 @@ function initSwipeGestures(){
       setTimeout(()=>doSwipe(movieId,false,false),300);
     } else {
       // Snap back
-      card.style.transform='translate(0,0) rotate(0deg)';
+      card.style.transform='translateX(0) rotate(0deg)';
       if(labelYes)labelYes.style.opacity='0';
       if(labelNo)labelNo.style.opacity='0';
-      if(labelWatch)labelWatch.style.opacity='0';
     }
   }
   card.addEventListener('touchstart',onStart,{passive:true});
@@ -804,8 +825,7 @@ function renderSwipe(){
           </div>
           <div class="swipe-hints">
             <div class="swipe-hint" style="color:var(--red)"><i class="ti ti-arrow-left"></i><span>Skip</span></div>
-            <div class="swipe-hint" style="color:var(--accent-soft)"><i class="ti ti-arrow-up"></i><span>Watched</span></div>
-            <div class="swipe-hint" style="color:var(--green)"><i class="ti ti-arrow-right"></i><span>Watch</span></div>
+            <div class="swipe-hint" style="color:var(--green)"><i class="ti ti-arrow-right"></i><span>Want to watch</span></div>
           </div>
           <div style="text-align:center;margin-top:.5rem">
             <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;max-width:200px;margin:0 auto">
