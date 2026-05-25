@@ -376,6 +376,21 @@ window.addByIdx=async function(i){
   const btn=document.getElementById('radd-'+i);
   if(btn)btn.innerHTML='<div class="spinner"></div>';
   await addToWatchlist(m);
+  // Always update button after attempt — show check if now in list, + if failed
+  const btn2=document.getElementById('radd-'+i);
+  if(!btn2)return;
+  const alreadyAdded=S.myMovies.find(w=>w.movie_id===String(m.id));
+  if(alreadyAdded){
+    btn2.innerHTML='<i class="ti ti-check" style="font-size:15px"></i>';
+    btn2.style.background='#e2f5ec';
+    btn2.style.borderColor='rgba(26,122,74,0.3)';
+    btn2.style.color='#1a7a4a';
+  } else {
+    btn2.innerHTML='<i class="ti ti-plus"></i>';
+    btn2.style.background='';
+    btn2.style.borderColor='';
+    btn2.style.color='';
+  }
 };;
 window.addToWatchlistByIndex=function(i){
   const results=window._searchResults;
