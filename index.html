@@ -349,16 +349,25 @@ function onSearchInput(){
   clearTimeout(_searchTimer);
   const el=document.getElementById('sInput');
   const q=(el?el.value:'').trim();
+  // Show/hide clear button
+  const clearBtn=document.getElementById('clearBtn');
+  if(clearBtn)clearBtn.style.display=q?'flex':'none';
   if(!q){
-    // only clear results if input is fully empty
     const rEl=document.getElementById('searchResults');
     if(rEl)rEl.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">Start typing to search</p>';
     return;
   }
-  // Don't wipe existing results while user is still typing
-  // Just wait then search
   const delay=q.length>=3?400:700;
   _searchTimer=setTimeout(doSearch,delay);
+}
+function clearSearch(){
+  const el=document.getElementById('sInput');
+  if(el){el.value='';el.focus();}
+  const clearBtn=document.getElementById('clearBtn');
+  if(clearBtn)clearBtn.style.display='none';
+  const rEl=document.getElementById('searchResults');
+  if(rEl)rEl.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">Start typing to search</p>';
+  clearTimeout(_searchTimer);
 }
 window.addToWatchlistEnc=enc=>{try{addToWatchlist(JSON.parse(decodeURIComponent(enc)));}catch(e){toast('Error');}};
 
@@ -827,15 +836,18 @@ function savePartnerName(){
 }
 
 function renderAddModal(){
-  return`<div class="modal-overlay" onclick="if(event.target.classList.contains('modal-overlay'))closeModal()">
-    <div class="modal-sheet" id="addModalSheet" onclick="event.stopPropagation()">
+  return`<div class="modal-overlay">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
       <div class="modal-drag"></div>
       <div class="modal-head">
         <div class="modal-title">Search movies</div>
-        <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
+        <button class="modal-close" onclick="closeModal()" style="width:44px;height:44px;font-size:20px;background:var(--surface2)"><i class="ti ti-x"></i></button>
       </div>
       <div class="search-wrap">
-        <input type="text" id="sInput" placeholder="Start typing a movie name..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="onSearchInput()" onkeydown="if(event.key==='Enter'){clearTimeout(_searchTimer);doSearch()}">
+        <div style="position:relative;flex:1;min-width:0">
+          <input type="text" id="sInput" placeholder="Movie title..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="onSearchInput()" onkeydown="if(event.key==='Enter'){clearTimeout(_searchTimer);doSearch()}" style="padding-right:40px">
+          <button onclick="clearSearch()" id="clearBtn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--surface3);border:none;border-radius:50%;width:24px;height:24px;display:none;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);font-size:14px"><i class="ti ti-x"></i></button>
+        </div>
       </div>
       <div class="modal-body" id="searchResults">
         <p style="font-size:13px;color:var(--text3);padding:8px 0">Start typing to search</p>
@@ -935,6 +947,7 @@ window.openModal=m=>{S.modal=m;render();};
 window.closeModal=()=>{S.modal=null;render();};
 window.openDetail=openDetail;
 window.doSearch=doSearch;
+window.clearSearch=clearSearch;
 window.onSearchInput=onSearchInput;
 window.doPartnerSearch=doPartnerSearch;
 window.doSignOut=signOut;
@@ -980,21 +993,6 @@ window.doSignUp=()=>{
 })();
 </script>
 <script>
-// Swipe down to dismiss modal
-document.addEventListener('touchstart',e=>{
-  const sheet=document.getElementById('addModalSheet');
-  if(!sheet)return;
-  const startY=e.touches[0].clientY;
-  const startScroll=sheet.querySelector('.modal-body')?.scrollTop||0;
-  function onMove(e2){
-    const dy=e2.touches[0].clientY-startY;
-    if(dy>60&&startScroll<=0){closeModal();}
-  }
-  function onEnd(){document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}
-  document.addEventListener('touchmove',onMove,{passive:true});
-  document.addEventListener('touchend',onEnd);
-},{passive:true});
-
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('/sw.js').then(reg=>{
     reg.addEventListener('updatefound',()=>{
