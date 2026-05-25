@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CinePair">
-<meta name="theme-color" content="#080809">
+<meta name="theme-color" content="#ffffff">
 <title>CinePair</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -24,7 +24,7 @@
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"></noscript>
 <style>
 :root{
-  --bg:#f2f4f7;--surface:#ffffff;--surface2:#f7f8fa;--surface3:#eef0f4;
+  --bg:#f2f4f7;--body-bg:#ffffff;--surface:#ffffff;--surface2:#f7f8fa;--surface3:#eef0f4;
   --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);
   --text:#0d0d14;--text2:#5a5a72;--text3:#9898b0;
   --accent:#b07d20;--accent-soft:#c9962a;
@@ -36,14 +36,14 @@
   --nav-h:62px;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+html,body{height:100%;overflow:hidden;background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
 #app{height:100%;position:relative;background:var(--bg)}
 .screen{position:absolute;top:0;left:0;right:0;bottom:calc(var(--nav-h) + var(--sab));overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;min-height:0}
 .screen::-webkit-scrollbar{display:none}
-.nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--sab));background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:0.5px solid var(--border);display:flex;align-items:flex-start;padding-bottom:var(--sab);z-index:100}
+.nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--sab));background:#ffffff;border-top:0.5px solid var(--border);display:flex;align-items:flex-start;padding-bottom:var(--sab);z-index:100}
 .nav-btn{flex:1;background:none;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px 6px;transition:color .2s;position:relative}
-.nav-btn i{font-size:22px;line-height:1}
-.nav-btn span{font-size:10px;font-weight:500;letter-spacing:.3px}
+.nav-btn i{font-size:24px;line-height:1}
+.nav-btn span{font-size:12px;font-weight:500;letter-spacing:.2px}
 .nav-btn.active{color:var(--accent-soft)}
 .nav-btn.active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:24px;height:2px;background:var(--accent-soft);border-radius:0 0 2px 2px}
 .nav-add{position:absolute;right:16px;bottom:calc(var(--nav-h) + var(--sab) + 16px);width:52px;height:52px;border-radius:50%;background:var(--accent-soft);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;box-shadow:0 4px 16px rgba(180,120,20,0.35);z-index:101;transition:transform .15s}
@@ -92,7 +92,7 @@ input::placeholder{color:var(--text3)}
 .detail-actions{display:flex;gap:8px;flex-wrap:wrap;padding:1rem 1.25rem 0;flex-shrink:0}
 .filter-tabs{display:flex;gap:6px;padding:.25rem 1rem .6rem;overflow-x:auto}
 .filter-tabs::-webkit-scrollbar{display:none}
-.ftab{padding:6px 14px;font-size:13px;border-radius:20px;border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all .15s}
+.ftab{padding:8px 18px;font-size:15px;border-radius:20px;border:0.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all .15s;font-weight:500}
 .ftab.active{background:var(--text);color:var(--bg);border-color:transparent;font-weight:500}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:flex-end}
 .modal-sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;height:85vh;display:flex;flex-direction:column;padding-bottom:max(1.5rem,var(--sab));box-shadow:0 -4px 30px rgba(0,0,0,.12)}
@@ -168,7 +168,7 @@ input::placeholder{color:var(--text3)}
 </style>
 </head>
 <body>
-<div id="splash" style="position:fixed;inset:0;background:#f2f4f7;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s">
+<div id="splash" style="position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .3s">
   <div style="font-family:Georgia,serif;font-size:52px;letter-spacing:-.5px;margin-bottom:.25rem">Cine<span style="color:#c9962a">Pair</span></div>
   <div style="font-size:14px;color:#9898b0;letter-spacing:.3px">Your movies. Your perfect match.</div>
 </div>
