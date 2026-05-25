@@ -131,8 +131,8 @@ input::placeholder{color:var(--text3)}
 .r-add{width:32px;height:32px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent-soft);font-size:16px;transition:all .2s}
 
 /* SWIPE CARD */
-.swipe-stage{position:relative;height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:.5rem}
-.swipe-card{position:absolute;width:240px;background:var(--surface);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.12);overflow:hidden;cursor:grab;user-select:none;touch-action:none;transition:box-shadow .2s}
+.swipe-stage{position:relative;height:400px;display:flex;align-items:center;justify-content:center;overflow:visible;margin-bottom:.5rem;touch-action:none}
+.swipe-card{position:absolute;width:240px;background:var(--surface);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.12);overflow:hidden;cursor:grab;user-select:none;touch-action:pan-y;transition:box-shadow .2s}
 .swipe-card.dragging{cursor:grabbing;box-shadow:0 16px 48px rgba(0,0,0,.2)}
 .swipe-card-poster{width:240px;height:300px;object-fit:cover;display:block;background:var(--surface3)}
 .swipe-card-poster-placeholder{width:240px;height:300px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:60px}
@@ -450,6 +450,158 @@ function startSwipe(mood){
   // init swipe gestures after render
   setTimeout(initSwipeGestures,100);
 }
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+function initSwipeGestures(){
+  const card=document.getElementById('swipeCard');
+  if(!card||card._init)return;
+  card._init=true;
+  const labelYes=document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById('swipeLabelNo');
+  const movieId=card.dataset.movieId;
+  const screen=document.querySelector('.screen');
+  let startX=0,startY=0,curX=0,active=false,locked=false;
+
+  card.addEventListener('touchstart',e=>{
+    const t=e.touches[0];
+    startX=t.clientX;startY=t.clientY;
+    curX=0;active=true;locked=false;
+    card.style.transition='none';
+  },{passive:true});
+
+  card.addEventListener('touchmove',e=>{
+    if(!active)return;
+    const t=e.touches[0];
+    const dx=t.clientX-startX;
+    const dy=t.clientY-startY;
+    // Determine direction on first significant move
+    if(!locked){
+      if(Math.abs(dx)>Math.abs(dy)+5){locked='h';}
+      else if(Math.abs(dy)>Math.abs(dx)+5){locked='v';active=false;return;}
+      else return;
+    }
+    if(locked!=='h')return;
+    e.preventDefault();
+    curX=dx;
+    card.style.transform=`translateX(${curX}px) rotate(${curX*0.07}deg)`;
+    const p=Math.min(Math.abs(curX)/100,1);
+    if(curX>20){
+      card.style.boxShadow=`0 8px 40px rgba(26,122,74,${p*0.6})`;
+      if(labelYes)labelYes.style.opacity=String(Math.min(1,(curX-20)/60));
+      if(labelNo)labelNo.style.opacity='0';
+    } else if(curX<-20){
+      card.style.boxShadow=`0 8px 40px rgba(192,57,43,${p*0.6})`;
+      if(labelNo)labelNo.style.opacity=String(Math.min(1,(-curX-20)/60));
+      if(labelYes)labelYes.style.opacity='0';
+    } else {
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  },{passive:false});
+
+  card.addEventListener('touchend',e=>{
+    if(!active||locked!=='h'){active=false;return;}
+    active=false;
+    card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+    if(curX>80){
+      card.style.transform='translateX(150%) rotate(15deg)';
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,true,false),280);
+    } else if(curX<-80){
+      card.style.transform='translateX(-150%) rotate(-15deg)';
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,false,false),280);
+    } else {
+      card.style.transform='translateX(0) rotate(0deg)';
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  },{passive:true});
+
+  // Mouse for desktop
+  card.addEventListener('mousedown',e=>{
+    startX=e.clientX;curX=0;active=true;
+    card.style.transition='none';
+    function mm(e){
+      if(!active)return;
+      curX=e.clientX-startX;
+      card.style.transform=`translateX(${curX}px) rotate(${curX*0.07}deg)`;
+      const p=Math.min(Math.abs(curX)/100,1);
+      if(curX>20){card.style.boxShadow=`0 8px 40px rgba(26,122,74,${p*0.6})`;if(labelYes)labelYes.style.opacity=String(Math.min(1,(curX-20)/60));if(labelNo)labelNo.style.opacity='0';}
+      else if(curX<-20){card.style.boxShadow=`0 8px 40px rgba(192,57,43,${p*0.6})`;if(labelNo)labelNo.style.opacity=String(Math.min(1,(-curX-20)/60));if(labelYes)labelYes.style.opacity='0';}
+      else{card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}
+    }
+    function mu(){
+      active=false;
+      window.removeEventListener('mousemove',mm);
+      window.removeEventListener('mouseup',mu);
+      card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+      if(curX>80){card.style.transform='translateX(150%) rotate(15deg)';card.style.opacity='0';setTimeout(()=>doSwipe(movieId,true,false),280);}
+      else if(curX<-80){card.style.transform='translateX(-150%) rotate(-15deg)';card.style.opacity='0';setTimeout(()=>doSwipe(movieId,false,false),280);}
+      else{card.style.transform='translateX(0) rotate(0deg)';card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';if(labelYes)labelYes.style.opacity='0';if(labelNo)labelNo.style.opacity='0';}
+    }
+    window.addEventListener('mousemove',mm);
+    window.addEventListener('mouseup',mu);
+  });
+}
+
 async function doSwipe(movieId,liked,watched){
   if(S.playlist){
     await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
