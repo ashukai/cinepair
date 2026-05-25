@@ -391,15 +391,17 @@ async function addToWatchlist(movie){
   try{
     const full=await fetchMovieDetails(movie.id);
     const m=full||movie;
+    // Always use the ID from the full details fetch (most accurate)
+    const finalId=String(m.id);
     const{error:me}=await sb.from('movies').upsert({
-      id:m.id,title:m.title,year:m.year,director:m.director,
+      id:finalId,title:m.title,year:m.year,director:m.director,
       genre:m.genre,runtime:m.runtime,imdb_rating:m.imdb_rating,
       plot:m.plot,poster_path:m.poster_path
     },{onConflict:'id'});
     if(me){toast('Movie error: '+me.message);return;}
-    const{data:existing}=await sb.from('watchlist').select('id').eq('user_id',S.user.id).eq('movie_id',m.id).maybeSingle();
+    const{data:existing}=await sb.from('watchlist').select('id').eq('user_id',S.user.id).eq('movie_id',finalId).maybeSingle();
     if(existing){toast('Already in your list');return;}
-    const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:m.id});
+    const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:finalId});
     if(we){toast('Error: '+we.message);return;}
     await loadMyMovies();
     toast(m.title+' added!');
