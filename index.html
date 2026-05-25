@@ -514,6 +514,132 @@ function initSwipeGestures(){
   const labelYes=document.getElementById('swipeLabelYes');
   const labelNo=document.getElementById('swipeLabelNo');
   const movieId=card.dataset.movieId;
+  let startX=0,curX=0,active=false;
+
+  function getX(e){return e.touches?e.touches[0].clientX:e.clientX;}
+
+  function start(e){
+    active=true;startX=getX(e);curX=0;
+    card.style.transition='none';
+  }
+  function move(e){
+    if(!active)return;
+    if(e.cancelable)e.preventDefault();
+    curX=getX(e)-startX;
+    card.style.transform=`translateX(${curX}px) rotate(${curX*0.07}deg)`;
+    const p=Math.min(Math.abs(curX)/100,1);
+    if(curX>20){
+      card.style.boxShadow=`0 8px 40px rgba(26,122,74,${p*0.6})`;
+      if(labelYes)labelYes.style.opacity=String(Math.min(1,(curX-20)/60));
+      if(labelNo)labelNo.style.opacity='0';
+    } else if(curX<-20){
+      card.style.boxShadow=`0 8px 40px rgba(192,57,43,${p*0.6})`;
+      if(labelNo)labelNo.style.opacity=String(Math.min(1,(-curX-20)/60));
+      if(labelYes)labelYes.style.opacity='0';
+    } else {
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  }
+  function end(){
+    if(!active)return;
+    active=false;
+    card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+    if(curX>80){
+      card.style.transform='translateX(150%) rotate(15deg)';
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,true,false),280);
+    } else if(curX<-80){
+      card.style.transform='translateX(-150%) rotate(-15deg)';
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,false,false),280);
+    } else {
+      card.style.transform='translateX(0) rotate(0deg)';
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  }
+
+  // Touch events
+  card.addEventListener('touchstart',start,{passive:true});
+  card.addEventListener('touchmove',move,{passive:false});
+  card.addEventListener('touchend',end,{passive:true});
+
+  // Mouse events for desktop
+  card.addEventListener('mousedown',e=>{start(e);
+    function mm(e){move(e);}
+    function mu(){end();window.removeEventListener('mousemove',mm);window.removeEventListener('mouseup',mu);}
+    window.addEventListener('mousemove',mm);
+    window.addEventListener('mouseup',mu);
+  });
+}
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+function initSwipeGestures(){
+  const card=document.getElementById('swipeCard');
+  if(!card||card._init)return;
+  card._init=true;
+  const labelYes=document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById('swipeLabelNo');
+  const movieId=card.dataset.movieId;
   let startX=0,curX=0,dragging=false;
 
   function onStart(e){
@@ -963,9 +1089,13 @@ function renderSwipe(){
               </div>
             </div>
           </div>
-          <div class="swipe-hints">
-            <div class="swipe-hint" style="color:var(--red)"><i class="ti ti-arrow-left"></i><span>Skip</span></div>
-            <div class="swipe-hint" style="color:var(--green)"><i class="ti ti-arrow-right"></i><span>Want to watch</span></div>
+          <div style="display:flex;justify-content:center;gap:2rem;padding:.75rem 0 .25rem">
+            <button onclick="tapSwipe('${cur.movie_id}',false)" style="width:64px;height:64px;border-radius:50%;background:#fde8e8;color:var(--red);border:0.5px solid rgba(192,57,43,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform='scale(.9)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(.9)'" ontouchend="this.style.transform='scale(1)'"><i class="ti ti-x"></i></button>
+            <button onclick="tapSwipe('${cur.movie_id}',true)" style="width:64px;height:64px;border-radius:50%;background:#e2f5ec;color:var(--green);border:0.5px solid rgba(26,122,74,.2);font-size:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform='scale(.9)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(.9)'" ontouchend="this.style.transform='scale(1)'"><i class="ti ti-heart"></i></button>
+          </div>
+          <div style="display:flex;justify-content:center;gap:2rem;padding:0 0 .25rem">
+            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Skip</span>
+            <span style="font-size:11px;color:var(--text3);width:64px;text-align:center">Watch</span>
           </div>
           <div style="text-align:center;margin-top:.5rem">
             <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;max-width:200px;margin:0 auto">
@@ -1208,6 +1338,17 @@ window.shareApp=async function(){
   const text='Join me on CinePair!\n\nMy username: @'+(S.profile?.username||'')+'\n\ncinepair.com';
   if(navigator.share){try{await navigator.share({title:'CinePair',text,url:'https://cinepair.com'});}catch(e){}}
   else{navigator.clipboard?.writeText(text).then(()=>toast('Copied to clipboard!'));}
+};
+window.tapSwipe=function(movieId,liked){
+  const card=document.getElementById('swipeCard');
+  if(card){
+    card.style.transition='transform .3s,opacity .3s';
+    card.style.transform=liked?'translateX(150%) rotate(15deg)':'translateX(-150%) rotate(-15deg)';
+    card.style.opacity='0';
+    setTimeout(()=>doSwipe(movieId,liked,false),280);
+  } else {
+    doSwipe(movieId,liked,false);
+  }
 };
 window.setTab=t=>{
   S.tab=t;
