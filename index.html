@@ -509,6 +509,131 @@ function getMatches(){
 // SWIPE GESTURE ENGINE
 function initSwipeGestures(){
   const card=document.getElementById('swipeCard');
+  if(!card||card._init)return;
+  card._init=true;
+  const labelYes=document.getElementById('swipeLabelYes');
+  const labelNo=document.getElementById('swipeLabelNo');
+  const movieId=card.dataset.movieId;
+  let startX=0,curX=0,dragging=false;
+
+  function onStart(e){
+    dragging=true;
+    const pt=e.touches?e.touches[0]:e;
+    startX=pt.clientX;curX=0;
+    card.classList.add('dragging');
+    card.style.transition='none';
+    card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+  }
+  function onMove(e){
+    if(!dragging)return;
+    e.preventDefault();
+    const pt=e.touches?e.touches[0]:e;
+    curX=pt.clientX-startX;
+    const rot=curX*0.08;
+    card.style.transform=`translateX(${curX}px) rotate(${rot}deg)`;
+    const progress=Math.min(Math.abs(curX)/120,1);
+    if(curX>30){
+      card.style.boxShadow=`0 8px 32px rgba(26,122,74,${progress*0.5})`;
+      if(labelYes)labelYes.style.opacity=Math.min(1,(curX-30)/80).toString();
+      if(labelNo)labelNo.style.opacity='0';
+    } else if(curX<-30){
+      card.style.boxShadow=`0 8px 32px rgba(192,57,43,${progress*0.5})`;
+      if(labelNo)labelNo.style.opacity=Math.min(1,(-curX-30)/80).toString();
+      if(labelYes)labelYes.style.opacity='0';
+    } else {
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  }
+  function onEnd(){
+    if(!dragging)return;
+    dragging=false;
+    card.classList.remove('dragging');
+    card.style.transition='transform .3s, opacity .3s, box-shadow .3s';
+    const THRESH=90;
+    if(curX>THRESH){
+      card.style.transform=`translateX(140%) rotate(15deg)`;
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,true,false),300);
+    } else if(curX<-THRESH){
+      card.style.transform=`translateX(-140%) rotate(-15deg)`;
+      card.style.opacity='0';
+      setTimeout(()=>doSwipe(movieId,false,false),300);
+    } else {
+      card.style.transform='translateX(0) rotate(0deg)';
+      card.style.boxShadow='0 8px 32px rgba(0,0,0,.12)';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
+  }
+  card.addEventListener('touchstart',onStart,{passive:true});
+  card.addEventListener('touchmove',onMove,{passive:false});
+  card.addEventListener('touchend',onEnd);
+  card.addEventListener('mousedown',onStart);
+  window.addEventListener('mousemove',e=>{if(dragging)onMove(e);});
+  window.addEventListener('mouseup',e=>{if(dragging)onEnd();});
+}
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+
+async function doSwipe(movieId,liked,watched){
+  if(S.playlist){
+    await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:movieId,liked:watched?false:liked},{onConflict:'playlist_id,user_id,movie_id'});
+  }
+  if(watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',movieId);
+    await loadMyMovies();toast('Marked as watched!');
+  }
+  S.mySwipes[movieId]=watched?false:liked;S.swipeIdx++;render();
+  setTimeout(()=>{document.querySelector('.screen')?.scrollTo({top:0,behavior:'smooth'});},50);
+  setTimeout(initSwipeGestures,150);
+}
+async function doPartnerSwipe(movieId,liked){
+  if(S.playlist?.partner_id){const partnerId=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:partnerId,movie_id:movieId,liked},{onConflict:'playlist_id,user_id,movie_id'});}
+  S.partnerSwipes[movieId]=liked;render();
+  setTimeout(initSwipeGestures,150);
+}
+async function resetSwipes(){
+  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  S.mySwipes={};S.partnerSwipes={};S.swipeQueue=[];S.swipeIdx=0;S.swipeStarted=false;S.selectedMood=null;toast('Swipes reset!');render();
+}
+function getMatches(){
+  const pool=getSwipePool(S.selectedMood);
+  if(!pool.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.partnerSwipes[m.movie_id]!==undefined))return[];
+  return pool.filter(m=>S.mySwipes[m.movie_id]===true&&S.partnerSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
+}
+
+// SWIPE GESTURE ENGINE
+function initSwipeGestures(){
+  const card=document.getElementById('swipeCard');
   if(!card)return;
   // Clone card to remove all existing event listeners
   const fresh=card.cloneNode(true);
@@ -524,22 +649,33 @@ function initSwipeGestures(){
   function onStart(e){
     dragging=true;
     const pt=e.touches?e.touches[0]:e;
-    startX=pt.clientX;startY=pt.clientY;curX=0;curY=0;
+    startX=pt.clientX;curX=0;
     card.classList.add('dragging');
     card.style.transition='none';
+    card.style.boxShadow='';
   }
   function onMove(e){
     if(!dragging)return;
     e.preventDefault();
     const pt=e.touches?e.touches[0]:e;
-    curX=pt.clientX-startX;curY=pt.clientY-startY;
-    // Only allow horizontal movement - lock vertical
+    curX=pt.clientX-startX;
     const rot=curX*0.08;
     card.style.transform=`translateX(${curX}px) rotate(${rot}deg)`;
-    // Show labels based on horizontal only
-    if(labelYes)labelYes.style.opacity=curX>30?Math.min(1,(curX-30)/80).toString():'0';
-    if(labelNo)labelNo.style.opacity=curX<-30?Math.min(1,(-curX-30)/80).toString():'0';
-    if(labelWatch)labelWatch.style.opacity='0';
+    // Green tint when swiping right, red when left
+    const progress=Math.min(Math.abs(curX)/120,1);
+    if(curX>30){
+      card.style.boxShadow=`0 8px 32px rgba(26,122,74,${progress*0.4})`;
+      if(labelYes){labelYes.style.opacity=Math.min(1,(curX-30)/80).toString();}
+      if(labelNo)labelNo.style.opacity='0';
+    } else if(curX<-30){
+      card.style.boxShadow=`0 8px 32px rgba(192,57,43,${progress*0.4})`;
+      if(labelNo){labelNo.style.opacity=Math.min(1,(-curX-30)/80).toString();}
+      if(labelYes)labelYes.style.opacity='0';
+    } else {
+      card.style.boxShadow='';
+      if(labelYes)labelYes.style.opacity='0';
+      if(labelNo)labelNo.style.opacity='0';
+    }
   }
   function onEnd(){
     if(!dragging)return;
@@ -560,6 +696,7 @@ function initSwipeGestures(){
     } else {
       // Snap back
       card.style.transform='translateX(0) rotate(0deg)';
+      card.style.boxShadow='';
       if(labelYes)labelYes.style.opacity='0';
       if(labelNo)labelNo.style.opacity='0';
     }
@@ -794,8 +931,11 @@ function renderSwipe(){
   const moodLabel=MOODS.find(m=>m.id===S.selectedMood)?.label||'Movies';
   return`
     <div class="header">
+      <button onclick="S.swipeStarted=false;render()" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;color:var(--accent-soft);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0">
+        <i class="ti ti-chevron-left" style="font-size:22px"></i> Moods
+      </button>
       <div class="logo">Cine<em>Pair</em></div>
-      <button class="btn-icon" onclick="S.swipeStarted=false;render()"><i class="ti ti-arrow-left"></i></button>
+      <div style="width:80px"></div>
     </div>
     <div class="section-head">
       <span class="section-title">${moodLabel}</span>
