@@ -376,7 +376,8 @@ window.addByIdx=async function(i){
   const btn=document.getElementById('radd-'+i);
   if(btn)btn.innerHTML='<div class="spinner"></div>';
   await addToWatchlist(m);
-  // Always update button after attempt — show check if now in list, + if failed
+  // Wait briefly for S.myMovies to update then check
+  await new Promise(r=>setTimeout(r,300));
   const btn2=document.getElementById('radd-'+i);
   if(!btn2)return;
   const alreadyAdded=S.myMovies.find(w=>w.movie_id===String(m.id));
