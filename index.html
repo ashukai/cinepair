@@ -221,6 +221,7 @@ let _addBusy=false,_sTimer=null;
 
 const MOODS=[
   {id:'any',label:'All unwatched',icon:'ti-sparkles',desc:'Everything',wide:true},
+  {id:'random10',label:'Random 10',icon:'ti-dice',desc:'App picks for you',wide:true},
   {id:'comedy',label:'Comedy',icon:'ti-mood-happy',desc:'Fun & laughs'},
   {id:'drama',label:'Drama',icon:'ti-masks-theater',desc:'Emotional'},
   {id:'romance',label:'Romance',icon:'ti-heart',desc:'Love stories'},
@@ -229,7 +230,7 @@ const MOODS=[
   {id:'horror',label:'Horror',icon:'ti-ghost',desc:'Scary'},
   {id:'documentary',label:'Documentary',icon:'ti-camera',desc:'Real stories'},
 ];
-const GENRES={any:null,comedy:['Comedy'],drama:['Drama'],romance:['Romance'],
+const GENRES={any:null,random10:'random',comedy:['Comedy'],drama:['Drama'],romance:['Romance'],
   actionscifi:['Action','Adventure','Science Fiction'],
   thriller:['Thriller','Mystery','Crime'],horror:['Horror'],documentary:['Documentary']};
 
@@ -391,7 +392,12 @@ async function soloSetup(){
 
 // SWIPE LOGIC
 function pool(mood){
-  const all=allMovies();const g=mood&&mood!=='any'?GENRES[mood]:null;
+  const all=allMovies();
+  if(mood==='random10'){
+    // Return all so count shows correctly, actual random selection happens in startSwipe
+    return all;
+  }
+  const g=mood&&mood!=='any'?GENRES[mood]:null;
   if(!g)return all;
   return all.filter(w=>{const genre=w.movie?.genre||'';return g.some(x=>genre.toLowerCase().includes(x.toLowerCase()));});
 }
@@ -399,8 +405,11 @@ function startSwipe(mood){
   S.mood=mood;
   let p=pool(mood).filter(w=>S.mySwipes[w.movie_id]===undefined);
   if(!p.length){S.mySwipes={};S.pSwipes={};p=pool(mood);if(!p.length){toast('No movies match');return;}toast('All swiped — starting fresh!');}
-  S.queue=[...p].sort(()=>Math.random()-.5);S.qi=0;S.swiping=true;
-  // Preload first 3 images before showing
+  // Shuffle first, then pick 10 for random mode
+  const shuffled=[...p].sort(()=>Math.random()-.5);
+  S.queue=mood==='random10'?shuffled.slice(0,10):shuffled;
+  S.qi=0;S.swiping=true;
+  // Preload first 3 images
   S.queue.slice(0,3).forEach(w=>{if(w.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;}});
   render();setTimeout(attachSwipe,100);
 }
@@ -736,7 +745,7 @@ function renderSwipe(){
       ${ap.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add movies first</p></div>`:`
       <div class="mood-grid">${MOODS.map(mood=>{const cnt=pool(mood.id).length;return`<button class="mbtn ${mood.wide?'wide':''}" onclick="startSwipe('${mood.id}')">
         <i class="ti ${mood.icon}" style="font-size:22px;color:var(--gold)"></i>
-        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${mood.label}</span><span style="font-size:12px;color:var(--text3)">${cnt}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${mood.label}</span><span style="font-size:12px;color:var(--text3)">${mood.id==='random10'?Math.min(10,cnt):cnt}</span></div>
         <div style="font-size:12px;color:var(--text3)">${mood.desc}</div>
       </button>`;}).join('')}</div>`}
       ${matches.length>0?`
