@@ -965,10 +965,10 @@ function renderSwipe(){
 
   if(!S.swiping){
     const ap=allMovies();
-    return\`
+    return`
     <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
     <div class="shead"><span class="stitle">What are you in the mood for?</span></div>
-    <div style="padding:0 1rem">\`
+    <div style="padding:0 1rem">
       ${ap.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add movies first</p></div>`:`
       <div class="mood-grid">${MOODS.map(mood=>{const cnt=pool(mood.id).length;return`<button class="mbtn ${mood.wide?'wide':''}" onclick="startSwipe('${mood.id}')">
         <i class="ti ${mood.icon}" style="font-size:22px;color:var(--gold)"></i>
