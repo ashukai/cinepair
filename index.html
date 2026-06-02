@@ -13,6 +13,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+<link rel="preconnect" href="https://api.themoviedb.org" crossorigin>
+<link rel="preconnect" href="https://mshcjeibgyhruxddjwxy.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
@@ -124,7 +128,7 @@ input::placeholder{color:var(--text3)}
 .swipe-bg{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 4px 16px rgba(0,0,0,.08);transform:scale(.93) translateY(10px);overflow:hidden;background:var(--surface3)}
 .swipe-bg img,.swipe-bg-ph{width:100%;height:100%;object-fit:cover;display:block}
 .swipe-bg-ph{display:flex;align-items:center;justify-content:center;font-size:52px}
-.swipe-card{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 8px 28px rgba(0,0,0,.12);cursor:grab;will-change:transform;overflow:hidden}
+.swipe-card{position:absolute;inset:0;border-radius:16px;background:var(--surface);box-shadow:0 8px 28px rgba(0,0,0,.12);cursor:grab;overflow:hidden}
 .swipe-card img,.swipe-card-ph{width:100%;height:220px;object-fit:cover;display:block}
 .swipe-card-ph{height:220px;display:flex;align-items:center;justify-content:center;font-size:60px;background:var(--surface3)}
 .swipe-info{display:none}
@@ -241,7 +245,8 @@ let S={
   filter:'all',modal:null,detail:null,mood:null,swiping:false,
   authTab:'login',aLoading:false,aErr:'',aOk:'',
   pq:'',pResult:null,pMsg:'',pName:'Partner',
-  discover:{},dLoading:false,
+  discover:{},dLoading:false,lastSwipe:null,
+  requests:[],incomingRequests:[],userSuggestions:[],
 };
 
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),3000);}
@@ -278,7 +283,51 @@ async function signOut(){
 
 // DATA
 async function loadProfile(){if(!S.user)return;const{data}=await sb.from('profiles').select('*').eq('id',S.user.id).single();S.profile=data;await loadAll();}
-async function loadAll(){await Promise.all([loadMyMovies(),loadPlaylist()]);}
+async function loadAll(){await Promise.all([loadMyMovies(),loadPlaylist(),loadRequests()]);}
+
+async function loadRequests(){
+  if(!S.user)return;
+  const{data}=await sb.from('partner_requests')
+    .select('*,from:profiles!partner_requests_from_id_fkey(id,username),to:profiles!partner_requests_to_id_fkey(id,username)')
+    .or(`from_id.eq.${S.user.id},to_id.eq.${S.user.id}`)
+    .eq('status','pending');
+  S.requests=data||[];
+  S.incomingRequests=(data||[]).filter(r=>r.to_id===S.user.id);
+}
+
+async function sendRequest(toId){
+  const{error}=await sb.from('partner_requests').insert({from_id:S.user.id,to_id:toId});
+  if(error){toast('Error: '+error.message);return;}
+  await loadRequests();toast('Request sent!');S.pResult=null;S.pq='';render();
+}
+
+async function acceptRequest(reqId,fromId){
+  await sb.from('partner_requests').update({status:'accepted'}).eq('id',reqId);
+  // Create playlist
+  const{data,error}=await sb.from('together_playlists').insert({owner_id:fromId,partner_id:S.user.id,name:'Our List'}).select().single();
+  if(error){toast('Error: '+error.message);return;}
+  S.playlist=data;await loadPlaylist();await loadRequests();toast('Connected!');render();
+}
+
+async function declineRequest(reqId){
+  await sb.from('partner_requests').update({status:'declined'}).eq('id',reqId);
+  await loadRequests();toast('Request declined');render();
+}
+
+// Live username search
+let _pTimer=null;
+async function onPInput(){
+  const el=document.getElementById('pInput');
+  const q=(el?el.value:'').trim();
+  S.pq=q;
+  clearTimeout(_pTimer);
+  if(!q){S.pResult=null;S.pMsg='';S.userSuggestions=[];render();return;}
+  _pTimer=setTimeout(async()=>{
+    const{data}=await sb.from('profiles').select('id,username').neq('id',S.user.id).ilike('username',q+'%').limit(5);
+    S.userSuggestions=data||[];
+    render();
+  },300);
+}
 async function loadMyMovies(){const{data}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',S.user.id).order('added_at',{ascending:false});S.myMovies=data||[];}
 async function loadPlaylist(){
   const{data}=await sb.from('together_playlists').select('*,owner:profiles!together_playlists_owner_id_fkey(username,id),partner:profiles!together_playlists_partner_id_fkey(username,id)').or(`owner_id.eq.${S.user.id},partner_id.eq.${S.user.id}`).order('created_at',{ascending:false}).limit(1).maybeSingle();
@@ -409,22 +458,53 @@ function startSwipe(mood){
   const shuffled=[...p].sort(()=>Math.random()-.5);
   S.queue=mood==='random10'?shuffled.slice(0,10):shuffled;
   S.qi=0;S.swiping=true;
-  // Preload first 3 images
-  S.queue.slice(0,3).forEach(w=>{if(w.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;}});
-  render();setTimeout(attachSwipe,100);
+  // Preload all images upfront before showing swipe
+  const toPreload=S.queue.slice(0,Math.min(S.queue.length,10));
+  let loaded=0;
+  const total=toPreload.filter(w=>w.movie?.poster_path).length;
+  if(total===0){render();setTimeout(attachSwipe,100);return;}
+  toPreload.forEach(w=>{
+    if(!w.movie?.poster_path){return;}
+    const img=new Image();
+    img.onload=img.onerror=function(){
+      loaded++;
+      if(loaded>=Math.min(2,total)){render();setTimeout(attachSwipe,100);}
+    };
+    img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;
+  });
 }
 async function doSwipe(mid,liked){
+  S.lastSwipe={mid,liked,qi:S.qi,who:'me'};
   if(S.playlist)await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});
   S.mySwipes[mid]=liked;S.qi++;
-  // Preload the next-next card image before rendering
-  const upcoming=S.queue[S.qi+1];
-  if(upcoming?.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+upcoming.movie.poster_path;}
+  // Preload next 2 images immediately
+  [S.queue[S.qi],S.queue[S.qi+1]].forEach(w=>{
+    if(w?.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;}
+  });
   render();setTimeout(attachSwipe,100);
 }
 async function doPartnerSwipe(mid,liked){
+  S.lastSwipe={mid,liked,who:'partner'};
   if(S.playlist?.partner_id){const pid=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:pid,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});}
   S.pSwipes[mid]=liked;render();
   setTimeout(attachSwipe,100);
+}
+async function undoSwipe(){
+  const last=S.lastSwipe;
+  if(!last){toast('Nothing to undo');return;}
+  if(last.who==='me'){
+    if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id).eq('user_id',S.user.id).eq('movie_id',last.mid);
+    delete S.mySwipes[last.mid];
+    S.qi=last.qi;
+  } else {
+    if(S.playlist?.partner_id){
+      const pid=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;
+      await sb.from('swipes').delete().eq('playlist_id',S.playlist.id).eq('user_id',pid).eq('movie_id',last.mid);
+    }
+    delete S.pSwipes[last.mid];
+  }
+  S.lastSwipe=null;
+  toast('↩ Undone!');render();setTimeout(attachSwipe,100);
 }
 async function resetSwipes(){
   if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
@@ -435,6 +515,10 @@ function getMatches(){
   if(!p.every(m=>S.mySwipes[m.movie_id]!==undefined&&S.pSwipes[m.movie_id]!==undefined))return[];
   return p.filter(m=>S.mySwipes[m.movie_id]===true&&S.pSwipes[m.movie_id]===true).map(w=>({movie_id:w.movie_id,movie:w.movie}));
 }
+
+// Image cache to avoid refetching
+const _imgCache={};
+function preImg(url){if(!url||_imgCache[url])return;_imgCache[url]=true;const i=new Image();i.src=url;}
 
 // SWIPE - works in Safari and Chrome, home screen and browser
 function initCard(cardId, labelYId, labelNId, onSwipe){
@@ -454,7 +538,7 @@ function initCard(cardId, labelYId, labelNId, onSwipe){
     else{card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
   }
   function settle(){
-    card.style.transition='transform .3s,opacity .3s,box-shadow .2s';
+    card.style.transition='transform .25s ease-out,opacity .25s,box-shadow .2s';
     if(dx>75){card.style.transform='translateX(160%) rotate(12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,true);},290);}
     else if(dx<-75){card.style.transform='translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,false);},290);}
     else{card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
@@ -625,15 +709,16 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
   const tapFn=isPartner?'tapPSwipe':'tapSwipe';
   return`<div class="swipe-wrap">
     <div class="swipe-stage">
-      ${nxt?`<div class="swipe-bg" style="overflow:hidden">${nxt.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(nxt.movie.poster_path)}" style="width:100%;height:100%;object-fit:cover;display:block" decoding="async">`:`<div class="swipe-bg-ph">🎬</div>`}</div>`:''}
+      ${nxt?`<div class="swipe-bg" style="overflow:hidden">${nxt.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(nxt.movie.poster_path)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`:`<div class="swipe-bg-ph">🎬</div>`}</div>`:''}
       <div class="swipe-card" id="${cardId}" data-mid="${cur.movie_id}" style="touch-action:none">
         <div class="swipe-lbl lbl-yes" id="${ly}">WATCH ❤️</div>
         <div class="swipe-lbl lbl-no" id="${ln}">SKIP ✕</div>
         <div style="width:100%;height:300px;background:var(--surface3);overflow:hidden;flex-shrink:0;position:relative;border-radius:16px">
-          ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" decoding="async">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:.75rem;background:linear-gradient(transparent,rgba(0,0,0,0.82))">
-            <div style="font-size:15px;font-weight:600;color:#fff;line-height:1.3">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.8">(${esc(cur.movie?.year||'')})</span></div>
-            <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+          ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" decoding="sync" fetchpriority="high">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.85) 100%)"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:.875rem">
+            <div style="font-size:15px;font-weight:600;color:#fff;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,.5)">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.8">(${esc(cur.movie?.year||'')})</span></div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;text-shadow:0 1px 3px rgba(0,0,0,.5)">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
           </div>
         </div>
       </div>
@@ -645,6 +730,10 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
     <div class="swipe-prog">
       <div class="swipe-bar"><div class="swipe-fill" style="width:${pct}%"></div></div>
       <div class="swipe-lbl-txt">${idx+1} of ${total}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:.5rem">
+      ${S.lastSwipe?`<button onclick="undoSwipe()" style="padding:5px 14px;border-radius:20px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-back-up" style="font-size:14px"></i> Undo</button>`:''}
+      <button onclick="resetSwipes()" style="padding:5px 14px;border-radius:20px;border:0.5px solid var(--red-border);background:var(--red-dim);color:var(--red);font-size:12px;cursor:pointer;font-family:DM Sans,sans-serif;display:flex;align-items:center;gap:4px"><i class="ti ti-rotate" style="font-size:14px"></i> Reset</button>
     </div>
     ${prompt?`<p style="font-size:12px;color:var(--text3);text-align:center;margin-top:.5rem">${prompt} 📱</p>`:''}
   </div>`;
@@ -699,8 +788,29 @@ function renderMy(){
 
 function renderPartner(){
   const hp=!!(S.playlist?.partner_id);
+  const incoming=S.incomingRequests||[];
   return`
     <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
+    ${incoming.length>0?`
+      <div class="card cp" style="margin-top:.5rem;border:1.5px solid var(--gold-border);background:var(--gold-dim)">
+        <div style="font-size:15px;font-weight:600;margin-bottom:.75rem">🎬 Partner request</div>
+        ${incoming.map(r=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="av" style="width:38px;height:38px;font-size:15px">${r.from?.username?.[0]?.toUpperCase()||'?'}</div>
+              <div>
+                <div style="font-weight:500">@${esc(r.from?.username||'')}</div>
+                <div style="font-size:12px;color:var(--text2)">wants to connect with you</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn gold" style="flex:1;justify-content:center" onclick="acceptRequest('${r.id}','${r.from_id}')"><i class="ti ti-check"></i> Accept</button>
+            <button class="btn" style="flex:1;justify-content:center;color:var(--red)" onclick="declineRequest('${r.id}')"><i class="ti ti-x"></i> Decline</button>
+          </div>
+        `).join('')}
+      </div>
+    `:''}
     ${!S.playlist?`<div class="card cp" style="margin-top:.5rem">
       <div style="font-size:16px;font-weight:500;margin-bottom:.75rem">Partner list</div>
       <p style="font-size:14px;color:var(--text2);margin-bottom:1.25rem;line-height:1.6">Connect to see partner movies and swipe together.</p>
@@ -885,26 +995,46 @@ function renderAddModal(){
 }
 
 function renderPartnerModal(){
+  const pendingSent=S.requests.filter(r=>r.from_id===S.user.id);
   return`<div class="ov">
-    <div class="sh" onclick="event.stopPropagation()">
+    <div class="sh sh2" onclick="event.stopPropagation()">
       <div class="shdrag"></div>
       <div class="shhead"><div class="shtitle">Connect partner</div>
         <button class="shclose" onclick="closeModal()"><i class="ti ti-x"></i></button>
       </div>
       <div class="shbody">
-        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem;line-height:1.6">Your partner needs their own CinePair account. Their movies will automatically appear in the swipe pool.</p>
-        <div style="display:flex;gap:8px;margin-bottom:1rem">
-          <input type="text" id="pInput" placeholder="their_username" value="${esc(S.pq)}" oninput="S.pq=this.value" autocomplete="off" onkeydown="if(event.key==='Enter')findPartner()" style="flex:1;min-width:0">
-          <button class="btn gold" style="flex-shrink:0" onclick="findPartner()">Find</button>
-        </div>
+        <p style="font-size:14px;color:var(--text2);margin-bottom:1rem;line-height:1.6">Search by username — your partner needs a CinePair account.</p>
+        <input type="text" id="pInput" placeholder="Start typing username..." value="${esc(S.pq)}" oninput="onPInput()" autocomplete="off" autocorrect="off" spellcheck="false" style="margin-bottom:.75rem">
         ${S.pMsg?`<div class="aerr">${esc(S.pMsg)}</div>`:''}
-        ${S.pResult?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);padding:13px;border-radius:var(--rs)">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="av" style="width:36px;height:36px;font-size:14px">${S.pResult.username[0].toUpperCase()}</div>
-            <div style="font-weight:500">@${esc(S.pResult.username)}</div>
+        ${(S.userSuggestions||[]).length>0?`
+          <div style="border:0.5px solid var(--border);border-radius:var(--rs);overflow:hidden;margin-bottom:1rem">
+            ${S.userSuggestions.map(u=>{
+              const alreadySent=S.requests.find(r=>r.from_id===S.user.id&&r.to_id===u.id);
+              return`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid var(--border);background:var(--surface)">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="av" style="width:36px;height:36px;font-size:14px">${u.username[0].toUpperCase()}</div>
+                  <div style="font-weight:500">@${esc(u.username)}</div>
+                </div>
+                ${alreadySent
+                  ?`<span style="font-size:12px;color:var(--text3);padding:6px 12px;background:var(--surface2);border-radius:20px">Request sent</span>`
+                  :S.playlist
+                  ?`<span style="font-size:12px;color:var(--text3)">Already connected</span>`
+                  :`<button class="btn gold" style="padding:7px 14px;font-size:13px" onclick="sendRequest('${u.id}')">Send request</button>`
+                }
+              </div>`;
+            }).join('')}
           </div>
-          <button class="btn gold" style="padding:8px 16px;font-size:13px" onclick="connectPartner('${S.pResult.id}')">Connect</button>
-        </div>`:''}
+        `:S.pq.length>0&&!S.pMsg?`<p style="font-size:13px;color:var(--text3);margin-bottom:1rem">No users found matching "${esc(S.pq)}"</p>`:''}
+        ${pendingSent.length>0?`
+          <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Pending requests</div>
+          ${pendingSent.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface2);border-radius:var(--rs);margin-bottom:.5rem">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="av" style="width:30px;height:30px;font-size:12px">${r.to?.username?.[0]?.toUpperCase()||'?'}</div>
+              <span style="font-size:14px;font-weight:500">@${esc(r.to?.username||'')}</span>
+            </div>
+            <span style="font-size:12px;color:var(--text3)">Waiting...</span>
+          </div>`).join('')}
+        `:''}
       </div>
     </div>
   </div>`;
@@ -926,7 +1056,11 @@ function render(){
   else if(S.tab==='swipe')content=renderSwipe();
   else if(S.tab==='discover')content=renderDiscover();
   else content=renderProfile();
-  const navHTML=`<nav>${tabs.map(t=>`<button class="nb ${S.tab===t.id?'on':''}" onclick="setTab('${t.id}')"><i class="ti ${t.icon}"></i><span>${t.label}</span></button>`).join('')}</nav>${S.tab==='my'?`<button class="fab" onclick="openModal('add')"><i class="ti ti-plus"></i></button>`:''}`;
+  const navHTML=`<nav>${tabs.map(t=>`<button class="nb ${S.tab===t.id?'on':''}" onclick="setTab('${t.id}')" style="position:relative">
+  <i class="ti ${t.icon}"></i>
+  ${t.id==='partner'&&S.incomingRequests?.length>0?`<span style="position:absolute;top:5px;right:calc(50% - 18px);width:8px;height:8px;background:var(--red);border-radius:50%;border:1.5px solid #fff"></span>`:''}
+  <span>${t.label}</span>
+</button>`).join('')}</nav>${S.tab==='my'?`<button class="fab" onclick="openModal('add')"><i class="ti ti-plus"></i></button>`:''}`;
   const modal=S.modal==='add'?renderAddModal():S.modal==='partner'?renderPartnerModal():'';
   const detail=S.detail?renderDetail():'';
   // Disable scroll when swiping to prevent touch conflict
@@ -939,6 +1073,11 @@ function render(){
 }
 
 // GLOBALS
+window.undoSwipe=undoSwipe;
+window.sendRequest=sendRequest;
+window.acceptRequest=acceptRequest;
+window.declineRequest=declineRequest;
+window.onPInput=onPInput;
 window.setTab=function(t){S.tab=t;if(t==='discover'&&!Object.keys(S.discover).length)loadDiscover();render();};
 window.setFilter=f=>{S.filter=f;render();};
 window.setATab=t=>{S.authTab=t;S.aErr='';S.aOk='';render();};
@@ -970,9 +1109,17 @@ window.doSignUp=()=>{
 
 (async()=>{
   setTimeout(hideSplash,5000);
-  const{data:{session}}=await sb.auth.getSession();
-  if(session?.user){S.user=session.user;await loadProfile();}
+  // Show auth screen immediately without waiting for session
   render();
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user){S.user=session.user;await loadProfile();render();}
+  // Poll for incoming partner requests every 30 seconds
+  setInterval(async()=>{
+    if(!S.user)return;
+    const prevCount=S.incomingRequests?.length||0;
+    await loadRequests();
+    if((S.incomingRequests?.length||0)!==prevCount)render();
+  },30000);
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session?.user&&!S.user){S.user=session.user;await loadProfile();render();}
     else if(event==='SIGNED_OUT'){S.user=null;S.profile=null;render();}
