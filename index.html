@@ -304,10 +304,22 @@ async function sendRequest(toId){
 
 async function acceptRequest(reqId,fromId){
   await sb.from('partner_requests').update({status:'accepted'}).eq('id',reqId);
-  // Create playlist
-  const{data,error}=await sb.from('together_playlists').insert({owner_id:fromId,partner_id:S.user.id,name:'Our List'}).select().single();
-  if(error){toast('Error: '+error.message);return;}
-  S.playlist=data;await loadPlaylist();await loadRequests();toast('Connected!');render();
+  // Check if playlist already exists between these two users
+  const{data:existing}=await sb.from('together_playlists')
+    .select('*')
+    .or(`and(owner_id.eq.${fromId},partner_id.eq.${S.user.id}),and(owner_id.eq.${S.user.id},partner_id.eq.${fromId})`)
+    .maybeSingle();
+  if(!existing){
+    const{data,error}=await sb.from('together_playlists').insert({owner_id:fromId,partner_id:S.user.id,name:'Our List'}).select().single();
+    if(error){toast('Error: '+error.message);return;}
+  }
+  // Reload everything fresh
+  S.playlist=null;S.partnerMovies=[];
+  await loadAll();
+  await loadRequests();
+  toast('Connected with partner! 🎬');
+  S.tab='partner';
+  render();
 }
 
 async function declineRequest(reqId){
@@ -343,13 +355,21 @@ async function loadPlaylist(){
     const pn=data.owner_id===S.user.id?data.partner?.username:data.owner?.username;
     if(pn)S.pName=pn;
     await Promise.all([loadPartnerMovies(),loadSwipes()]);
+    console.log('Playlist loaded:',data.id,'partner_id:',data.partner_id);
   }
 }
 async function loadPartnerMovies(){
-  if(!S.playlist?.partner_id)return;
-  const pid=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;
-  const{data}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',pid).order('added_at',{ascending:false});
+  if(!S.playlist)return;
+  // Partner could be either owner or partner field
+  let pid=null;
+  if(S.playlist.partner_id){
+    pid=S.playlist.owner_id===S.user.id?S.playlist.partner_id:S.playlist.owner_id;
+  }
+  if(!pid)return;
+  const{data,error}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',pid).order('added_at',{ascending:false});
+  if(error){console.error('loadPartnerMovies error',error);return;}
   S.partnerMovies=data||[];
+  console.log('Partner movies loaded:',S.partnerMovies.length,'for partner:',pid);
 }
 async function loadSwipes(){
   if(!S.playlist)return;
@@ -459,33 +479,40 @@ function pool(mood){
   if(!g)return all;
   return all.filter(w=>{const genre=w.movie?.genre||'';return g.some(x=>genre.toLowerCase().includes(x.toLowerCase()));});
 }
-function startSwipe(mood){
+async function startSwipe(mood){
   if(mood==='tonight'&&(!S.tonightPicks||!S.tonightPicks.size)){
-    // Show picker first
-    S.showTonightPicker=true;S.mood=mood;render();return;
+    toast('Add movies to Tonight from your list first!');
+    S.tab='my';render();return;
   }
   S.mood=mood;
   let p=pool(mood).filter(w=>S.mySwipes[w.movie_id]===undefined);
   if(!p.length){S.mySwipes={};S.pSwipes={};p=pool(mood);if(!p.length){toast('No movies match');return;}toast('All swiped — starting fresh!');}
-  // Shuffle first, then pick 10 for random mode
-  const shuffled=[...p].sort(()=>Math.random()-.5);
-  S.queue=mood==='random10'?shuffled.slice(0,10):shuffled;
-  S.qi=0;S.swiping=true;
-  // Preload all images upfront before showing swipe
-  const toPreload=S.queue.slice(0,Math.min(S.queue.length,10));
-  let loaded=0;
-  const total=toPreload.filter(w=>w.movie?.poster_path).length;
-  if(total===0){render();setTimeout(attachSwipe,100);return;}
-  toPreload.forEach(w=>{
-    if(!w.movie?.poster_path){return;}
-    const img=new Image();
-    img.onload=img.onerror=function(){
-      loaded++;
-      if(loaded>=Math.min(2,total)){render();setTimeout(attachSwipe,100);}
-    };
-    img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;
-  });
+
+  let finalQueue;
+  if(mood==='random10'&&S.playlist){
+    // Check if a random10 selection already exists for this session
+    const{data:pl}=await sb.from('together_playlists').select('random10_ids').eq('id',S.playlist.id).maybeSingle();
+    if(pl?.random10_ids&&pl.random10_ids.length>0){
+      // Both partners use the same saved selection
+      const allPool=allMovies();
+      const ordered=pl.random10_ids.map(id=>allPool.find(w=>w.movie_id===String(id))).filter(Boolean);
+      finalQueue=ordered.length>0?ordered:[...p].sort(()=>Math.random()-.5).slice(0,10);
+    } else {
+      // First person to start — generate and save for partner
+      const shuffled=[...p].sort(()=>Math.random()-.5).slice(0,10);
+      finalQueue=shuffled;
+      await sb.from('together_playlists').update({random10_ids:shuffled.map(w=>w.movie_id)}).eq('id',S.playlist.id);
+    }
+  } else {
+    const shuffled=[...p].sort(()=>Math.random()-.5);
+    finalQueue=mood==='random10'?shuffled.slice(0,10):shuffled;
+  }
+
+  S.queue=finalQueue;S.qi=0;S.swiping=true;
+  S.queue.slice(0,3).forEach(w=>{if(w.movie?.poster_path){const img=new Image();img.src='https://image.tmdb.org/t/p/w342'+w.movie.poster_path;}});
+  render();setTimeout(attachSwipe,100);
 }
+
 async function doSwipe(mid,liked){
   S.lastSwipe={mid,liked,qi:S.qi,who:'me'};
   if(S.playlist)await sb.from('swipes').upsert({playlist_id:S.playlist.id,user_id:S.user.id,movie_id:mid,liked},{onConflict:'playlist_id,user_id,movie_id'});
@@ -527,11 +554,18 @@ async function undoSwipe(){
   S.lastSwipe=null;
   toast('↩ Undone!');render();setTimeout(attachSwipe,100);
 }
-function toggleTonightPick(mid){
+function toggleTonightPick(mid,e){
+  if(e)e.stopPropagation();
   if(!S.tonightPicks)S.tonightPicks=new Set();
+  const scrollPos=document.querySelector('.screen')?.scrollTop||0;
   if(S.tonightPicks.has(mid))S.tonightPicks.delete(mid);
   else S.tonightPicks.add(mid);
   render();
+  // Restore scroll position so screen doesn't jump
+  requestAnimationFrame(()=>{
+    const screen=document.querySelector('.screen');
+    if(screen)screen.scrollTop=scrollPos;
+  });
 }
 function startTonightSwipe(){
   S.showTonightPicker=false;
@@ -547,10 +581,22 @@ async function disconnectPartner(){
   S.queue=[];S.qi=0;S.swiping=false;
   toast('Disconnected!');render();
 }
+async function refreshPartner(){
+  toast('Refreshing...');
+  S.partnerMovies=[];
+  await loadAll();
+  render();
+  toast('Updated!');
+}
 async function resetSwipes(){
-  if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
-  S.mySwipes={};S.pSwipes={};S.queue=[];S.qi=0;S.swiping=false;S.mood=null;
-  if(S.mood==='tonight'){S.tonightPicks=new Set();}
+  if(S.playlist){
+    await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+    // Also clear the saved random10 selection so both get a fresh set
+    await sb.from('together_playlists').update({random10_ids:null}).eq('id',S.playlist.id);
+  }
+  S.mySwipes={};S.pSwipes={};S.queue=[];S.qi=0;S.swiping=false;
+  if(S.mood==='tonight')S.tonightPicks=new Set();
+  S.mood=null;
   toast('Reset!');render();
 }
 function getMatches(){
@@ -722,6 +768,9 @@ function mrow(item,fromP){
       </div>
       ${!fromP?`<div class="macts" onclick="event.stopPropagation()">
         <button class="pill ${w?'seen':''}" onclick="toggleWatched('${mid}',${w},event)">${w?'✓ Seen':'Mark seen'}</button>
+        ${!w?`<button class="pill ${S.tonightPicks&&S.tonightPicks.has('${mid}')?'seen':''}" onclick="toggleTonightPick('${mid}')" style="${S.tonightPicks&&S.tonightPicks.has('${mid}')?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)':''}">
+          ${S.tonightPicks&&S.tonightPicks.has('${mid}')?'★ Tonight':'+ Tonight'}
+        </button>`:''}
         <button class="pill rm" onclick="removeMovie('${mid}',event)"><i class="ti ti-trash" style="font-size:13px"></i></button>
       </div>`:''}
     </div>
@@ -865,6 +914,7 @@ function renderMy(){
       <button class="ft ${S.filter==='all'?'on':''}" onclick="setFilter('all')">All (${all.length})</button>
       <button class="ft ${S.filter==='unwatched'?'on':''}" onclick="setFilter('unwatched')">To watch (${all.filter(w=>!w.watched).length})</button>
       <button class="ft ${S.filter==='watched'?'on':''}" onclick="setFilter('watched')">Watched (${all.filter(w=>w.watched).length})</button>
+      ${S.tonightPicks&&S.tonightPicks.size>0?`<button class="ft" onclick="setTab('swipe')" style="background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)">★ Tonight (${S.tonightPicks.size}) →</button>`:''}
     </div>
     <div class="card">
       ${filt.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>${all.length===0?'Tap + to add your first movie':'Nothing here'}</p></div>`:filt.map(w=>mrow(w,false)).join('')}
@@ -875,7 +925,10 @@ function renderPartner(){
   const hp=!!(S.playlist?.partner_id);
   const incoming=S.incomingRequests||[];
   return`
-    <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="hdr">
+      <div class="logo">Cine<em>Pair</em></div>
+      <button class="ib" onclick="refreshPartner()"><i class="ti ti-refresh"></i></button>
+    </div>
     ${incoming.length>0?`
       <div class="card cp" style="margin-top:.5rem;border:1.5px solid var(--gold-border);background:var(--gold-dim)">
         <div style="font-size:15px;font-weight:600;margin-bottom:.75rem">🎬 Partner request</div>
@@ -1203,6 +1256,7 @@ window.undoSwipe=undoSwipe;
 window.closeSwipeDetail=closeSwipeDetail;
 window.toggleTonightPick=toggleTonightPick;
 window.disconnectPartner=disconnectPartner;
+window.refreshPartner=refreshPartner;
 window.startTonightSwipe=startTonightSwipe;
 window.showSwipeDetail=showSwipeDetail;
 window.sendRequest=sendRequest;
