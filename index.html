@@ -65,6 +65,8 @@ nav{position:absolute;bottom:0;left:0;right:0;height:calc(var(--nh) + var(--sab)
 .pill{display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border-radius:20px;font-size:13px;font-weight:500;border:0.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap}
 .pill.seen{background:var(--green-dim);color:var(--green);border-color:var(--green-border)}
 .pill.rm{background:transparent;color:var(--text3);border-color:transparent}
+.tn-active{background:var(--gold-dim)!important;color:var(--gold)!important;border-color:var(--gold-border)!important;font-weight:600!important}
+
 
 /* INPUT */
 input{background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--rs);padding:13px 15px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;width:100%}
@@ -238,6 +240,31 @@ const MOODS=[
 const GENRES={any:null,random10:'random',tonight:'tonight',comedy:['Comedy'],drama:['Drama'],romance:['Romance'],
   actionscifi:['Action','Adventure','Science Fiction'],
   thriller:['Thriller','Mystery','Crime'],horror:['Horror'],documentary:['Documentary']};
+
+const GENRE_ICONS={'Action':'ti-bolt','Adventure':'ti-mountain','Animation':'ti-wand','Comedy':'ti-mood-happy',
+  'Crime':'ti-shield','Documentary':'ti-camera','Drama':'ti-masks-theater','Fantasy':'ti-sparkles',
+  'History':'ti-clock','Horror':'ti-ghost','Music':'ti-music','Mystery':'ti-eye',
+  'Romance':'ti-heart','Science Fiction':'ti-planet','Thriller':'ti-eye','War':'ti-sword',
+  'Western':'ti-horse','Family':'ti-users','default':'ti-movie'};
+
+function getDynamicMoods(){
+  const all=allMovies();
+  const genreCounts={};
+  all.forEach(w=>{const g=w.movie?.genre;if(g)genreCounts[g]=(genreCounts[g]||0)+1;});
+  const dynamic=Object.entries(genreCounts)
+    .filter(([g])=>!['Comedy','Drama','Romance','Action','Adventure','Science Fiction','Thriller','Mystery','Crime','Horror','Documentary'].includes(g))
+    .sort((a,b)=>b[1]-a[1])
+    .map(([g,cnt])=>({id:'g_'+g.toLowerCase().replace(/[^a-z0-9]/g,'_'),label:g,icon:GENRE_ICONS[g]||GENRE_ICONS.default,desc:cnt+' movie'+(cnt!==1?'s':''),genre:g}));
+  return[...MOODS,...dynamic];
+}
+
+function getGenreForMood(moodId){
+  if(GENRES[moodId]!==undefined)return GENRES[moodId];
+  const moods=getDynamicMoods();
+  const m=moods.find(x=>x.id===moodId);
+  return m?.genre?[m.genre]:null;
+}
+
 
 let S={
   user:null,profile:null,tab:'my',
@@ -485,9 +512,10 @@ function pool(mood){
     if(!combined.size)return all;
     return all.filter(w=>combined.has(w.movie_id));
   }
-  const g=mood&&mood!=='any'?GENRES[mood]:null;
+  const g=getGenreForMood(mood);
   if(!g)return all;
-  return all.filter(w=>{const genre=w.movie?.genre||'';return g.some(x=>genre.toLowerCase().includes(x.toLowerCase()));});
+  if(Array.isArray(g))return all.filter(w=>{const genre=w.movie?.genre||'';return g.some(x=>genre.toLowerCase().includes(x.toLowerCase()));});
+  return all;
 }
 async function startSwipe(mood){
   if(mood==='tonight'&&(!S.tonightPicks||!S.tonightPicks.size)){
@@ -574,12 +602,10 @@ function toggleTonightPick(mid,e){
   const btn=document.getElementById('tn-'+mid);
   if(btn){
     if(!isSelected){
-      btn.style.background='var(--gold-dim)';btn.style.color='var(--gold)';
-      btn.style.borderColor='var(--gold-border)';btn.style.fontWeight='600';
+      btn.classList.add('tn-active');
       btn.textContent='★ Tonight';
     } else {
-      btn.style.background='';btn.style.color='';
-      btn.style.borderColor='';btn.style.fontWeight='';
+      btn.classList.remove('tn-active');
       btn.textContent='+ Tonight';
     }
   }
@@ -800,7 +826,7 @@ function mrow(item,fromP){
       </div>
       ${!fromP?`<div class="macts" onclick="event.stopPropagation()">
         <button class="pill ${w?'seen':''}" onclick="toggleWatched('${mid}',${w},event)">${w?'✓ Seen':'Mark seen'}</button>
-        ${!w?`<button class="pill" id="tn-${mid}" onclick="toggleTonightPick('${mid}',event)" style="${S.tonightPicks&&S.tonightPicks.has(mid)?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border);font-weight:600':''}">
+        ${!w?`<button class="pill${S.tonightPicks&&S.tonightPicks.has(mid)?' tn-active':''}" id="tn-${mid}" onclick="toggleTonightPick('${mid}',event)">
           ${S.tonightPicks&&S.tonightPicks.has(mid)?'★ Tonight':'+ Tonight'}
         </button>`:''}
         <button class="pill rm" onclick="removeMovie('${mid}',event)"><i class="ti ti-trash" style="font-size:13px"></i></button>
