@@ -323,10 +323,16 @@ async function onPInput(){
   clearTimeout(_pTimer);
   if(!q){S.pResult=null;S.pMsg='';S.userSuggestions=[];render();return;}
   _pTimer=setTimeout(async()=>{
-    const{data}=await sb.from('profiles').select('id,username').neq('id',S.user.id).ilike('username',q+'%').limit(5);
+    // Search case-insensitive - try both ilike and contains
+    const{data,error}=await sb.from('profiles')
+      .select('id,username')
+      .neq('id',S.user.id)
+      .or(`username.ilike.${q}%,username.ilike.%${q}%`)
+      .limit(8);
+    if(error)console.error('search error',error);
     S.userSuggestions=data||[];
     render();
-  },300);
+  },200);
 }
 async function loadMyMovies(){const{data}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',S.user.id).order('added_at',{ascending:false});S.myMovies=data||[];}
 async function loadPlaylist(){
@@ -531,7 +537,7 @@ function initCard(cardId, labelYId, labelNId, onSwipe){
   let sx=0,dx=0,active=false;
 
   function paint(){
-    card.style.transform='translateX('+dx+'px) rotate('+(dx*0.06)+'deg)';
+    card.style.transform='translateX('+dx+'px) rotate('+(dx*0.04)+'deg)';
     var p=Math.min(Math.abs(dx)/100,1);
     if(dx>15){card.style.boxShadow='0 8px 40px rgba(26,122,74,'+(p*0.6)+')';if(ly)ly.style.opacity=Math.min(1,(dx-15)/55)+'';if(ln)ln.style.opacity='0';}
     else if(dx<-15){card.style.boxShadow='0 8px 40px rgba(192,57,43,'+(p*0.6)+')';if(ln)ln.style.opacity=Math.min(1,(-dx-15)/55)+'';if(ly)ly.style.opacity='0';}
@@ -539,9 +545,9 @@ function initCard(cardId, labelYId, labelNId, onSwipe){
   }
   function settle(){
     card.style.transition='transform .25s ease-out,opacity .25s,box-shadow .2s';
-    if(dx>75){card.style.transform='translateX(160%) rotate(12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,true);},290);}
-    else if(dx<-75){card.style.transform='translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,false);},290);}
-    else{card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
+    if(dx>65){card.style.transform='translateX(160%) rotate(12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,true);},250);}
+    else if(dx<-65){card.style.transform='translateX(-160%) rotate(-12deg)';card.style.opacity='0';setTimeout(function(){onSwipe(mid,false);},250);}
+    else{card.style.transition='transform .2s ease-out';card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';}
   }
 
   // Touch events (most reliable in Safari)
@@ -713,12 +719,12 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
       <div class="swipe-card" id="${cardId}" data-mid="${cur.movie_id}" style="touch-action:none">
         <div class="swipe-lbl lbl-yes" id="${ly}">WATCH ❤️</div>
         <div class="swipe-lbl lbl-no" id="${ln}">SKIP ✕</div>
-        <div style="width:100%;height:300px;background:var(--surface3);overflow:hidden;flex-shrink:0;position:relative;border-radius:16px">
-          ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" decoding="sync" fetchpriority="high">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
-          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.85) 100%)"></div>
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:.875rem">
-            <div style="font-size:15px;font-weight:600;color:#fff;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,.5)">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.8">(${esc(cur.movie?.year||'')})</span></div>
-            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;text-shadow:0 1px 3px rgba(0,0,0,.5)">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+        <div style="width:100%;height:300px;background:linear-gradient(135deg,#2a2a3a,#1a1a2a);overflow:hidden;flex-shrink:0;position:relative;border-radius:16px">
+          ${cur.movie?.poster_path?`<img src="https://image.tmdb.org/t/p/w342${esc(cur.movie.poster_path)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .15s" onload="this.style.opacity='1'" decoding="async" fetchpriority="high">`:`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:60px">🎬</div>`}
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 35%,rgba(0,0,0,0.9) 100%)"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:.875rem .875rem .75rem">
+            <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3;text-shadow:0 2px 8px rgba(0,0,0,.8)">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.75">(${esc(cur.movie?.year||'')})</span></div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:3px;text-shadow:0 1px 4px rgba(0,0,0,.8)">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
           </div>
         </div>
       </div>
