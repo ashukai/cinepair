@@ -246,7 +246,7 @@ let S={
   filter:'all',modal:null,detail:null,mood:null,swiping:false,
   authTab:'login',aLoading:false,aErr:'',aOk:'',
   pq:'',pResult:null,pMsg:'',pName:'Partner',
-  discover:{},dLoading:false,lastSwipe:null,swipeDetail:null,tonightPicks:new Set(),showTonightPicker:false,
+  discover:{},dLoading:false,lastSwipe:null,swipeDetail:null,tonightPicks:new Set(),partnerTonightPicks:new Set(),showTonightPicker:false,
   requests:[],incomingRequests:[],userSuggestions:[],
 };
 
@@ -354,8 +354,14 @@ async function loadPlaylist(){
   if(data){
     const pn=data.owner_id===S.user.id?data.partner?.username:data.owner?.username;
     if(pn)S.pName=pn;
+    // Load my tonight picks from DB
+    if(data.tonight_picks_owner&&data.tonight_picks_partner){
+      const myField=data.owner_id===S.user.id?'tonight_picks_owner':'tonight_picks_partner';
+      const partnerField=data.owner_id===S.user.id?'tonight_picks_partner':'tonight_picks_owner';
+      S.tonightPicks=new Set((data[myField]||[]));
+      S.partnerTonightPicks=new Set((data[partnerField]||[]));
+    }
     await Promise.all([loadPartnerMovies(),loadSwipes()]);
-    console.log('Playlist loaded:',data.id,'partner_id:',data.partner_id);
   }
 }
 async function loadPartnerMovies(){
@@ -472,8 +478,12 @@ function pool(mood){
   const all=allMovies();
   if(mood==='random10')return all;
   if(mood==='tonight'){
-    if(!S.tonightPicks||!S.tonightPicks.size)return all;
-    return all.filter(w=>S.tonightPicks.has(w.movie_id));
+    // Combine my picks + partner's picks from DB
+    const myPicks=S.tonightPicks||new Set();
+    const partnerPicks=S.partnerTonightPicks||new Set();
+    const combined=new Set([...myPicks,...partnerPicks]);
+    if(!combined.size)return all;
+    return all.filter(w=>combined.has(w.movie_id));
   }
   const g=mood&&mood!=='any'?GENRES[mood]:null;
   if(!g)return all;
@@ -557,15 +567,37 @@ async function undoSwipe(){
 function toggleTonightPick(mid,e){
   if(e)e.stopPropagation();
   if(!S.tonightPicks)S.tonightPicks=new Set();
-  const scrollPos=document.querySelector('.screen')?.scrollTop||0;
-  if(S.tonightPicks.has(mid))S.tonightPicks.delete(mid);
+  const isSelected=S.tonightPicks.has(mid);
+  if(isSelected)S.tonightPicks.delete(mid);
   else S.tonightPicks.add(mid);
-  render();
-  // Restore scroll position so screen doesn't jump
-  requestAnimationFrame(()=>{
-    const screen=document.querySelector('.screen');
-    if(screen)screen.scrollTop=scrollPos;
-  });
+  // Update just the button without re-rendering whole page
+  const btn=document.getElementById('tn-'+mid);
+  if(btn){
+    if(!isSelected){
+      btn.style.background='var(--gold-dim)';btn.style.color='var(--gold)';
+      btn.style.borderColor='var(--gold-border)';btn.style.fontWeight='600';
+      btn.textContent='★ Tonight';
+    } else {
+      btn.style.background='';btn.style.color='';
+      btn.style.borderColor='';btn.style.fontWeight='';
+      btn.textContent='+ Tonight';
+    }
+  }
+  // Update the badge in filter tabs without full re-render
+  const badge=document.getElementById('tonightBadge');
+  if(badge){
+    if(S.tonightPicks.size>0){
+      badge.textContent='★ Tonight ('+S.tonightPicks.size+') →';
+      badge.style.display='inline-block';
+    } else {
+      badge.style.display='none';
+    }
+  }
+  // Save to DB so partner sees our picks
+  if(S.playlist){
+    const myField=S.playlist.owner_id===S.user.id?'tonight_picks_owner':'tonight_picks_partner';
+    sb.from('together_playlists').update({[myField]:[...S.tonightPicks]}).eq('id',S.playlist.id).then(()=>{});
+  }
 }
 function startTonightSwipe(){
   S.showTonightPicker=false;
@@ -768,8 +800,8 @@ function mrow(item,fromP){
       </div>
       ${!fromP?`<div class="macts" onclick="event.stopPropagation()">
         <button class="pill ${w?'seen':''}" onclick="toggleWatched('${mid}',${w},event)">${w?'✓ Seen':'Mark seen'}</button>
-        ${!w?`<button class="pill ${S.tonightPicks&&S.tonightPicks.has('${mid}')?'seen':''}" onclick="toggleTonightPick('${mid}')" style="${S.tonightPicks&&S.tonightPicks.has('${mid}')?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)':''}">
-          ${S.tonightPicks&&S.tonightPicks.has('${mid}')?'★ Tonight':'+ Tonight'}
+        ${!w?`<button class="pill" id="tn-${mid}" onclick="toggleTonightPick('${mid}',event)" style="${S.tonightPicks&&S.tonightPicks.has(mid)?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border);font-weight:600':''}">
+          ${S.tonightPicks&&S.tonightPicks.has(mid)?'★ Tonight':'+ Tonight'}
         </button>`:''}
         <button class="pill rm" onclick="removeMovie('${mid}',event)"><i class="ti ti-trash" style="font-size:13px"></i></button>
       </div>`:''}
@@ -914,7 +946,7 @@ function renderMy(){
       <button class="ft ${S.filter==='all'?'on':''}" onclick="setFilter('all')">All (${all.length})</button>
       <button class="ft ${S.filter==='unwatched'?'on':''}" onclick="setFilter('unwatched')">To watch (${all.filter(w=>!w.watched).length})</button>
       <button class="ft ${S.filter==='watched'?'on':''}" onclick="setFilter('watched')">Watched (${all.filter(w=>w.watched).length})</button>
-      ${S.tonightPicks&&S.tonightPicks.size>0?`<button class="ft" onclick="setTab('swipe')" style="background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border)">★ Tonight (${S.tonightPicks.size}) →</button>`:''}
+      <button id="tonightBadge" class="ft" onclick="setTab('swipe')" style="background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border);display:${S.tonightPicks&&S.tonightPicks.size>0?'inline-block':'none'}">★ Tonight (${S.tonightPicks?S.tonightPicks.size:0}) →</button>
     </div>
     <div class="card">
       ${filt.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>${all.length===0?'Tap + to add your first movie':'Nothing here'}</p></div>`:filt.map(w=>mrow(w,false)).join('')}
@@ -1017,6 +1049,101 @@ function renderSwipe(){
           </div>
         </div>`;
       }).join('')}
+    </div>`;
+  }
+
+  // Category preview screen
+  if(S.previewMood&&!S.swiping){
+    const moods=getDynamicMoods();
+    const mood=moods.find(m=>m.id===S.previewMood);
+    const movies=pool(S.previewMood);
+    return`
+    <div class="hdr">
+      <button onclick="S.previewMood=null;render()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--gold);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0"><i class="ti ti-chevron-left" style="font-size:22px"></i> Moods</button>
+      <div class="logo">Cine<em>Pair</em></div>
+      <div style="width:80px"></div>
+    </div>
+    <div class="shead">
+      <span class="stitle">${esc(mood?.label||'')}</span>
+      <span style="font-size:12px;color:var(--text3)">${movies.length} movies</span>
+    </div>
+    <div style="padding:0 1rem .75rem">
+      <button class="btn gold" style="width:100%;justify-content:center;margin-bottom:1rem" onclick="startSwipe(S.previewMood);S.previewMood=null;">
+        <i class="ti ti-cards"></i> Start swiping these ${movies.length} movies
+      </button>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      ${movies.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>No movies in this category</p></div>`:
+      movies.map(w=>{const m=w.movie||{};const mid=w.movie_id;return`
+        <div class="mrow" onclick="openDetail('${mid}')">
+          <div class="mposter" style="width:44px;height:64px">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w92${esc(m.poster_path)}" style="width:100%;height:100%;object-fit:cover" loading="lazy">`:'🎬'}</div>
+          <div class="minfo">
+            <div class="mtitle" style="font-size:15px">${esc(m.title||'')} <span class="myear">(${esc(m.year||'')})</span></div>
+            <div class="msub">${esc(m.director||'')}${m.imdb_rating?' · ★'+m.imdb_rating:''}</div>
+            <div class="tags">
+              ${S.tonightPicks?.has(mid)||S.partnerTonightPicks?.has(mid)?`<span class="tag" style="background:var(--gold-dim);color:var(--gold)">★ Tonight</span>`:''}
+            </div>
+          </div>
+          <button class="pill" id="tn-${mid}" onclick="event.stopPropagation();toggleTonightPick('${mid}',event)" style="${S.tonightPicks?.has(mid)?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border);font-weight:600':''}">
+            ${S.tonightPicks?.has(mid)?'★':'+'} Tonight
+          </button>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  if(!S.swiping){
+    const ap=allMovies();
+    return`
+    <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
+    <div class="shead"><span class="stitle">What are you in the mood for?</span></div>
+    <div style="padding:0 1rem">
+      ${ap.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add movies first</p></div>`:`
+      <div class="mood-grid">${getDynamicMoods().map(mood=>{const cnt=pool(mood.id).length;
+        const isSpecial=mood.id==='any'||mood.id==='random10'||mood.id==='tonight';
+        const cnt2=mood.id==='random10'?Math.min(10,cnt):mood.id==='tonight'?((S.tonightPicks?.size||0)+(S.partnerTonightPicks?.size||0))||'tap to pick':cnt;
+        const fn=isSpecial?'startSwipe':'previewMood';
+        return`<button class="mbtn ${mood.wide?'wide':''}" onclick="${fn}('${mood.id}')" ${cnt===0?'style="opacity:.4"':''}>
+        <i class="ti ${mood.icon}" style="font-size:22px;color:var(--gold)"></i>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${mood.label}</span><span style="font-size:12px;color:var(--text3)">${cnt2}</span></div>
+        <div style="font-size:12px;color:var(--text3)">${mood.desc}</div>
+      </button>`;}).join('')}
+      </div>
+  // Category preview screen
+  if(S.previewMood&&!S.swiping){
+    const moods=getDynamicMoods();
+    const mood=moods.find(m=>m.id===S.previewMood);
+    const movies=pool(S.previewMood);
+    return`
+    <div class="hdr">
+      <button onclick="S.previewMood=null;render()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--gold);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0"><i class="ti ti-chevron-left" style="font-size:22px"></i> Moods</button>
+      <div class="logo">Cine<em>Pair</em></div>
+      <div style="width:80px"></div>
+    </div>
+    <div class="shead">
+      <span class="stitle">${esc(mood?.label||'')}</span>
+      <span style="font-size:12px;color:var(--text3)">${movies.length} movies</span>
+    </div>
+    <div style="padding:0 1rem .75rem">
+      <button class="btn gold" style="width:100%;justify-content:center;margin-bottom:1rem" onclick="startSwipe(S.previewMood);S.previewMood=null;">
+        <i class="ti ti-cards"></i> Start swiping these ${movies.length} movies
+      </button>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      ${movies.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>No movies in this category</p></div>`:
+      movies.map(w=>{const m=w.movie||{};const mid=w.movie_id;return`
+        <div class="mrow" onclick="openDetail('${mid}')">
+          <div class="mposter" style="width:44px;height:64px">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w92${esc(m.poster_path)}" style="width:100%;height:100%;object-fit:cover" loading="lazy">`:'🎬'}</div>
+          <div class="minfo">
+            <div class="mtitle" style="font-size:15px">${esc(m.title||'')} <span class="myear">(${esc(m.year||'')})</span></div>
+            <div class="msub">${esc(m.director||'')}${m.imdb_rating?' · ★'+m.imdb_rating:''}</div>
+            <div class="tags">
+              ${S.tonightPicks?.has(mid)||S.partnerTonightPicks?.has(mid)?`<span class="tag" style="background:var(--gold-dim);color:var(--gold)">★ Tonight</span>`:''}
+            </div>
+          </div>
+          <button class="pill" id="tn-${mid}" onclick="event.stopPropagation();toggleTonightPick('${mid}',event)" style="${S.tonightPicks?.has(mid)?'background:var(--gold-dim);color:var(--gold);border-color:var(--gold-border);font-weight:600':''}">
+            ${S.tonightPicks?.has(mid)?'★':'+'} Tonight
+          </button>
+        </div>`).join('')}
     </div>`;
   }
 
@@ -1258,6 +1385,7 @@ window.toggleTonightPick=toggleTonightPick;
 window.disconnectPartner=disconnectPartner;
 window.refreshPartner=refreshPartner;
 window.startTonightSwipe=startTonightSwipe;
+window.previewMood=function(moodId){S.previewMood=moodId;render();};
 window.showSwipeDetail=showSwipeDetail;
 window.sendRequest=sendRequest;
 window.acceptRequest=acceptRequest;
