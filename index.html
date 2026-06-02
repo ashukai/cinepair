@@ -226,6 +226,7 @@ let _addBusy=false,_sTimer=null;
 const MOODS=[
   {id:'any',label:'All unwatched',icon:'ti-sparkles',desc:'Everything',wide:true},
   {id:'random10',label:'Random 10',icon:'ti-dice',desc:'App picks for you',wide:true},
+  {id:'tonight',label:"Tonight's picks",icon:'ti-star',desc:'Your manual selection',wide:true},
   {id:'comedy',label:'Comedy',icon:'ti-mood-happy',desc:'Fun & laughs'},
   {id:'drama',label:'Drama',icon:'ti-masks-theater',desc:'Emotional'},
   {id:'romance',label:'Romance',icon:'ti-heart',desc:'Love stories'},
@@ -234,7 +235,7 @@ const MOODS=[
   {id:'horror',label:'Horror',icon:'ti-ghost',desc:'Scary'},
   {id:'documentary',label:'Documentary',icon:'ti-camera',desc:'Real stories'},
 ];
-const GENRES={any:null,random10:'random',comedy:['Comedy'],drama:['Drama'],romance:['Romance'],
+const GENRES={any:null,random10:'random',tonight:'tonight',comedy:['Comedy'],drama:['Drama'],romance:['Romance'],
   actionscifi:['Action','Adventure','Science Fiction'],
   thriller:['Thriller','Mystery','Crime'],horror:['Horror'],documentary:['Documentary']};
 
@@ -245,7 +246,7 @@ let S={
   filter:'all',modal:null,detail:null,mood:null,swiping:false,
   authTab:'login',aLoading:false,aErr:'',aOk:'',
   pq:'',pResult:null,pMsg:'',pName:'Partner',
-  discover:{},dLoading:false,lastSwipe:null,
+  discover:{},dLoading:false,lastSwipe:null,swipeDetail:null,tonightPicks:new Set(),showTonightPicker:false,
   requests:[],incomingRequests:[],userSuggestions:[],
 };
 
@@ -448,15 +449,20 @@ async function soloSetup(){
 // SWIPE LOGIC
 function pool(mood){
   const all=allMovies();
-  if(mood==='random10'){
-    // Return all so count shows correctly, actual random selection happens in startSwipe
-    return all;
+  if(mood==='random10')return all;
+  if(mood==='tonight'){
+    if(!S.tonightPicks||!S.tonightPicks.size)return all;
+    return all.filter(w=>S.tonightPicks.has(w.movie_id));
   }
   const g=mood&&mood!=='any'?GENRES[mood]:null;
   if(!g)return all;
   return all.filter(w=>{const genre=w.movie?.genre||'';return g.some(x=>genre.toLowerCase().includes(x.toLowerCase()));});
 }
 function startSwipe(mood){
+  if(mood==='tonight'&&(!S.tonightPicks||!S.tonightPicks.size)){
+    // Show picker first
+    S.showTonightPicker=true;S.mood=mood;render();return;
+  }
   S.mood=mood;
   let p=pool(mood).filter(w=>S.mySwipes[w.movie_id]===undefined);
   if(!p.length){S.mySwipes={};S.pSwipes={};p=pool(mood);if(!p.length){toast('No movies match');return;}toast('All swiped — starting fresh!');}
@@ -495,6 +501,14 @@ async function doPartnerSwipe(mid,liked){
   S.pSwipes[mid]=liked;render();
   setTimeout(attachSwipe,100);
 }
+function showSwipeDetail(mid){
+  // Find movie in queue
+  const item=S.queue.find(w=>w.movie_id===mid);
+  if(!item)return;
+  S.swipeDetail=item;render();
+}
+function closeSwipeDetail(){S.swipeDetail=null;render();setTimeout(attachSwipe,100);}
+
 async function undoSwipe(){
   const last=S.lastSwipe;
   if(!last){toast('Nothing to undo');return;}
@@ -512,9 +526,32 @@ async function undoSwipe(){
   S.lastSwipe=null;
   toast('↩ Undone!');render();setTimeout(attachSwipe,100);
 }
+function toggleTonightPick(mid){
+  if(!S.tonightPicks)S.tonightPicks=new Set();
+  if(S.tonightPicks.has(mid))S.tonightPicks.delete(mid);
+  else S.tonightPicks.add(mid);
+  render();
+}
+function startTonightSwipe(){
+  S.showTonightPicker=false;
+  startSwipe('tonight');
+}
+function clearTonightPicks(){S.tonightPicks=new Set();S.showTonightPicker=false;}
+async function disconnectPartner(){
+  if(!S.playlist)return;
+  if(!confirm('Disconnect partner? Your movie lists stay intact.'))return;
+  await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
+  await sb.from('together_playlists').delete().eq('id',S.playlist.id);
+  await sb.from('partner_requests').delete().or(`from_id.eq.${S.user.id},to_id.eq.${S.user.id}`);
+  S.playlist=null;S.partnerMovies=[];S.mySwipes={};S.pSwipes={};
+  S.queue=[];S.qi=0;S.swiping=false;
+  toast('Disconnected!');render();
+}
 async function resetSwipes(){
   if(S.playlist)await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
-  S.mySwipes={};S.pSwipes={};S.queue=[];S.qi=0;S.swiping=false;S.mood=null;toast('Reset!');render();
+  S.mySwipes={};S.pSwipes={};S.queue=[];S.qi=0;S.swiping=false;S.mood=null;
+  if(S.mood==='tonight'){S.tonightPicks=new Set();}
+  toast('Reset!');render();
 }
 function getMatches(){
   const p=S.queue.length?S.queue:pool(S.mood);if(!p.length)return[];
@@ -551,9 +588,20 @@ function initCard(cardId, labelYId, labelNId, onSwipe){
   }
 
   // Touch events (most reliable in Safari)
-  card.addEventListener('touchstart',function(e){active=true;sx=e.touches[0].clientX;dx=0;card.style.transition='none';},{passive:true});
-  card.addEventListener('touchmove',function(e){if(!active)return;var ndx=e.touches[0].clientX-sx;var ndy=Math.abs(e.touches[0].clientY-(e.touches[0].clientY));if(Math.abs(ndx)<5&&ndy<5)return;e.preventDefault();dx=ndx;paint();},{passive:false});
-  card.addEventListener('touchend',function(){if(!active)return;active=false;settle();},{passive:true});
+  var startY=0,startTime=0;
+  card.addEventListener('touchstart',function(e){active=true;sx=e.touches[0].clientX;startY=e.touches[0].clientY;startTime=Date.now();dx=0;card.style.transition='none';},{passive:true});
+  card.addEventListener('touchmove',function(e){if(!active)return;var ndx=e.touches[0].clientX-sx;if(Math.abs(ndx)<5)return;e.preventDefault();dx=ndx;paint();},{passive:false});
+  card.addEventListener('touchend',function(e){
+    if(!active)return;active=false;
+    // If barely moved and quick — it's a tap, show detail
+    var elapsed=Date.now()-startTime;
+    if(Math.abs(dx)<10&&elapsed<300){
+      card.style.transform='';card.style.boxShadow='';
+      if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';
+      showSwipeDetail(mid);return;
+    }
+    settle();
+  },{passive:true});
   card.addEventListener('touchcancel',function(){active=false;card.style.transition='transform .3s';card.style.transform='';card.style.boxShadow='';if(ly)ly.style.opacity='0';if(ln)ln.style.opacity='0';},{passive:true});
 
   // Pointer events for desktop/fallback
@@ -681,6 +729,36 @@ function mrow(item,fromP){
   </div>`;
 }
 
+function renderSwipeDetail(){
+  const item=S.swipeDetail;
+  const m=item?.movie||{};
+  return`<div class="ov" onclick="closeSwipeDetail()" style="z-index:400">
+    <div class="sh" onclick="event.stopPropagation()" style="max-height:70vh">
+      <div class="shdrag"></div>
+      <div class="shbody" style="padding:1rem">
+        <div style="display:flex;gap:1rem;margin-bottom:1rem">
+          <div style="width:80px;height:120px;border-radius:10px;background:var(--surface3);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 4px 12px rgba(0,0,0,.15)">
+            ${m.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(m.poster_path)}" style="width:100%;height:100%;object-fit:cover">`:'🎬'}
+          </div>
+          <div style="flex:1;min-width:0;padding-top:2px">
+            <div style="font-size:18px;font-weight:700;line-height:1.3;margin-bottom:4px">${esc(m.title||'')}</div>
+            <div style="font-size:13px;color:var(--text2);line-height:1.7">
+              ${m.year||''}${m.runtime?' · '+esc(m.runtime):''}
+              ${m.genre?'<br><span style="background:var(--surface2);padding:2px 8px;border-radius:20px;font-size:12px">'+esc(m.genre)+'</span>':''}
+              ${m.director?'<br>'+esc(m.director):''}
+              ${m.imdb_rating?'<br><span style="color:var(--gold);font-weight:600">★ '+m.imdb_rating+' / 10</span>':''}
+            </div>
+          </div>
+        </div>
+        ${m.plot?`<p style="font-size:14px;color:var(--text2);line-height:1.7">${esc(m.plot)}</p>`:'<p style="font-size:14px;color:var(--text3)">No description available.</p>'}
+      </div>
+      <div style="padding:.75rem 1rem;display:flex;gap:8px;flex-shrink:0">
+        <button class="btn" style="flex:1;justify-content:center;background:var(--red-dim);color:var(--red);border-color:var(--red-border)" onclick="closeSwipeDetail();setTimeout(()=>tapSwipe('${item.movie_id}',false),50)"><i class="ti ti-x"></i> Skip</button>
+        <button class="btn gold" style="flex:1;justify-content:center" onclick="closeSwipeDetail();setTimeout(()=>tapSwipe('${item.movie_id}',true),50)"><i class="ti ti-heart"></i> Watch</button>
+      </div>
+    </div>
+  </div>`;
+}
 function renderDetail(){
   const item=S.detail;const m=item.movie||item;const mid=item.movie_id||m.id;const w=item.watched||false;
   const mine=!!S.myMovies.find(x=>x.movie_id===mid);
@@ -725,6 +803,7 @@ function swipeCardHTML(cur,nxt,isPartner,idx,total,prompt){
           <div style="position:absolute;bottom:0;left:0;right:0;padding:.875rem .875rem .75rem">
             <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.3;text-shadow:0 2px 8px rgba(0,0,0,.8)">${esc(cur.movie?.title||'')} <span style="font-size:12px;font-weight:400;opacity:.75">(${esc(cur.movie?.year||'')})</span></div>
             <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:3px;text-shadow:0 1px 4px rgba(0,0,0,.8)">${esc(cur.movie?.genre||'')}${cur.movie?.imdb_rating?' · ★ '+cur.movie.imdb_rating:''}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:4px">Tap for details</div>
           </div>
         </div>
       </div>
@@ -852,16 +931,48 @@ function renderSwipe(){
   const cur=S.queue[S.qi];const nxt=S.queue[S.qi+1];
   const pUnswiped=S.queue.filter(m=>S.pSwipes[m.movie_id]===undefined);
 
+  // Tonight picker screen
+  if(S.showTonightPicker){
+    const all=allMovies();
+    return`
+    <div class="hdr">
+      <button onclick="S.showTonightPicker=false;render()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--gold);font-family:DM Sans,sans-serif;font-size:15px;font-weight:500;padding:0"><i class="ti ti-chevron-left" style="font-size:22px"></i> Moods</button>
+      <div class="logo">Cine<em>Pair</em></div>
+      <div style="width:80px"></div>
+    </div>
+    <div class="shead">
+      <span class="stitle">Pick tonight's movies</span>
+      ${S.tonightPicks.size>0?`<button class="btn gold" style="padding:6px 14px;font-size:13px" onclick="startTonightSwipe()"><i class="ti ti-cards"></i> Swipe (${S.tonightPicks.size})</button>`:''}
+    </div>
+    <p style="font-size:13px;color:var(--text2);padding:0 1rem .75rem">Tap movies to add them to tonight's swipe session.</p>
+    <div class="card" style="margin-bottom:1.5rem">
+      ${all.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>No unwatched movies</p></div>`:
+      all.map(w=>{
+        const m=w.movie||{};const mid=w.movie_id;const sel=S.tonightPicks.has(mid);
+        return`<div class="mrow" onclick="toggleTonightPick('${mid}')" style="background:${sel?'rgba(201,150,42,0.08)':''}">
+          <div class="mposter" style="width:44px;height:64px">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w92${esc(m.poster_path)}" style="width:100%;height:100%;object-fit:cover" loading="lazy">`:'🎬'}</div>
+          <div class="minfo">
+            <div class="mtitle" style="font-size:15px">${esc(m.title||'')} <span class="myear">(${esc(m.year||'')})</span></div>
+            <div class="msub">${esc(m.genre||'')}${m.imdb_rating?' · ★'+m.imdb_rating:''}</div>
+          </div>
+          <div style="width:28px;height:28px;border-radius:50%;border:2px solid ${sel?'var(--gold)':'var(--border2)'};background:${sel?'var(--gold)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:14px">
+            ${sel?'<i class="ti ti-check"></i>':''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   if(!S.swiping){
     const ap=allMovies();
-    return`
+    return\`
     <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
     <div class="shead"><span class="stitle">What are you in the mood for?</span></div>
-    <div style="padding:0 1rem">
+    <div style="padding:0 1rem">\`
       ${ap.length===0?`<div class="empty"><i class="ti ti-movie-off"></i><p>Add movies first</p></div>`:`
       <div class="mood-grid">${MOODS.map(mood=>{const cnt=pool(mood.id).length;return`<button class="mbtn ${mood.wide?'wide':''}" onclick="startSwipe('${mood.id}')">
         <i class="ti ${mood.icon}" style="font-size:22px;color:var(--gold)"></i>
-        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${mood.label}</span><span style="font-size:12px;color:var(--text3)">${mood.id==='random10'?Math.min(10,cnt):cnt}</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${mood.label}</span><span style="font-size:12px;color:var(--text3)">${mood.id==='random10'?Math.min(10,cnt):mood.id==='tonight'?(S.tonightPicks?.size||0)||'tap to pick':cnt}</span></div>
         <div style="font-size:12px;color:var(--text3)">${mood.desc}</div>
       </button>`;}).join('')}</div>`}
       ${matches.length>0?`
@@ -964,13 +1075,17 @@ function renderProfile(){
       ${hp?`<div style="display:flex;align-items:center;gap:12px">
         <div class="av" style="width:38px;height:38px;font-size:14px">${(pn||'?')[0].toUpperCase()}</div>
         <div><div style="font-weight:500">@${esc(pn||'')}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">Connected · ${S.partnerMovies.length} movies</div></div>
-      </div>`:S.playlist?`
+      </div>
+      <button class="btn" style="font-size:12px;padding:6px 12px;color:var(--red);border-color:var(--red-border);margin-top:.75rem" onclick="disconnectPartner()"><i class="ti ti-unlink"></i> Disconnect partner</button>`:S.playlist?`
         <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Single phone mode.</p>
         <div style="display:flex;gap:8px;margin-bottom:.75rem">
           <input type="text" id="pnInput" value="${esc(S.pName)}" placeholder="Partner name...">
           <button class="btn gold" style="padding:8px 14px;font-size:13px;flex-shrink:0" onclick="savePName()">Save</button>
         </div>
-        <button class="btn" style="font-size:13px" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" style="font-size:13px;flex:1" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
+          <button class="btn" style="font-size:13px;color:var(--red);border-color:var(--red-border)" onclick="disconnectPartner()"><i class="ti ti-unlink"></i> Reset</button>
+        </div>
       `:`<p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">No partner connected.</p>
       <button class="btn gold" style="font-size:13px" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner</button>`}
     </div>
@@ -1069,9 +1184,10 @@ function render(){
 </button>`).join('')}</nav>${S.tab==='my'?`<button class="fab" onclick="openModal('add')"><i class="ti ti-plus"></i></button>`:''}`;
   const modal=S.modal==='add'?renderAddModal():S.modal==='partner'?renderPartnerModal():'';
   const detail=S.detail?renderDetail():'';
+  const swipeDetailHTML=S.swipeDetail?renderSwipeDetail():'';
   // Disable scroll when swiping to prevent touch conflict
   const ns=S.tab==='swipe'&&S.swiping&&!S.modal?'noscroll':'';
-  app.innerHTML=`<div class="screen ${ns}">${content}</div>${navHTML}${modal}${detail}`;
+  app.innerHTML=`<div class="screen ${ns}">${content}</div>${navHTML}${modal}${detail}${swipeDetailHTML}`;
   hideSplash();
   if(S.modal==='add')setTimeout(()=>document.getElementById('sInput')?.focus(),80);
   if(S.modal==='partner')setTimeout(()=>document.getElementById('pInput')?.focus(),80);
@@ -1080,6 +1196,11 @@ function render(){
 
 // GLOBALS
 window.undoSwipe=undoSwipe;
+window.closeSwipeDetail=closeSwipeDetail;
+window.toggleTonightPick=toggleTonightPick;
+window.disconnectPartner=disconnectPartner;
+window.startTonightSwipe=startTonightSwipe;
+window.showSwipeDetail=showSwipeDetail;
 window.sendRequest=sendRequest;
 window.acceptRequest=acceptRequest;
 window.declineRequest=declineRequest;
