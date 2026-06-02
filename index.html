@@ -440,7 +440,8 @@ async function connectPartner(pid){
   S.playlist=data;S.modal=null;S.pResult=null;S.pq='';await loadPlaylist();toast('Connected!');render();
 }
 async function soloSetup(){
-  if(S.playlist){S.tab='swipe';render();return;}
+  if(S.playlist&&S.playlist.partner_id){toast('Already connected with partner');return;}
+  if(S.playlist&&!S.playlist.partner_id){S.tab='swipe';render();return;}
   const{data,error}=await sb.from('together_playlists').insert({owner_id:S.user.id,name:'Our List'}).select().single();
   if(error){toast('Error: '+error.message);return;}
   S.playlist=data;S.modal=null;await loadPlaylist();toast('Ready to swipe!');S.tab='swipe';render();
@@ -539,7 +540,6 @@ function startTonightSwipe(){
 function clearTonightPicks(){S.tonightPicks=new Set();S.showTonightPicker=false;}
 async function disconnectPartner(){
   if(!S.playlist)return;
-  if(!confirm('Disconnect partner? Your movie lists stay intact.'))return;
   await sb.from('swipes').delete().eq('playlist_id',S.playlist.id);
   await sb.from('together_playlists').delete().eq('id',S.playlist.id);
   await sb.from('partner_requests').delete().or(`from_id.eq.${S.user.id},to_id.eq.${S.user.id}`);
@@ -904,8 +904,12 @@ function renderPartner(){
         <button class="btn" onclick="soloSetup()"><i class="ti ti-device-mobile"></i> Use one phone</button>
       </div>
     </div>`:!hp?`<div class="card cp" style="margin-top:.5rem">
-      <p style="font-size:14px;color:var(--text2);margin-bottom:1rem;line-height:1.6">Single phone mode. Connect a partner account to see their movies.</p>
-      <button class="btn gold" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account</button>
+      <div style="font-size:16px;font-weight:500;margin-bottom:.75rem">Single phone mode</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:1rem;line-height:1.6">You and your partner swipe on this phone. Want to switch to separate accounts?</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn gold" onclick="openModal('partner')"><i class="ti ti-user-plus"></i> Connect partner account instead</button>
+        <button class="btn" style="color:var(--red);border-color:var(--red-border)" onclick="disconnectPartner()"><i class="ti ti-unlink"></i> Reset — start over</button>
+      </div>
     </div>`:`
       <div class="shead"><span class="stitle">${esc(S.pName)}'s movies</span><span style="font-size:12px;color:var(--text3)">${S.partnerMovies.length}</span></div>
       <div class="card">${S.partnerMovies.length===0?`<div class="empty"><i class="ti ti-user"></i><p>${esc(S.pName)} hasn't added movies yet</p></div>`:S.partnerMovies.map(w=>mrow(w,true)).join('')}</div>
