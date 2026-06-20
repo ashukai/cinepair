@@ -223,7 +223,7 @@ const TMDB='413ef3a9eddbeab6950c7464a3654671';
 const TBASE='https://api.themoviedb.org/3';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
-let _addBusy=false,_sTimer=null;
+let _addBusy=false,_sTimer=null,_prevTab=null;
 
 const MOODS=[
   {id:'any',label:'All unwatched',icon:'ti-sparkles',desc:'Everything',wide:true},
@@ -1288,9 +1288,14 @@ function render(){
   const modal=S.modal==='add'?renderAddModal():S.modal==='partner'?renderPartnerModal():'';
   const detail=S.detail?renderDetail():'';
   const swipeDetailHTML=S.swipeDetail?renderSwipeDetail():'';
+  // Preserve scroll position when overlays open/close on same tab
+  const prevScreen=document.querySelector('.screen');
+  const savedScroll=(_prevTab===S.tab&&prevScreen)?prevScreen.scrollTop:0;
+  _prevTab=S.tab;
   // Disable scroll when swiping to prevent touch conflict
   const ns=S.tab==='swipe'&&S.swiping&&!S.modal?'noscroll':'';
   app.innerHTML=`<div class="screen ${ns}">${content}</div>${navHTML}${modal}${detail}${swipeDetailHTML}`;
+  if(savedScroll>0){const ns2=document.querySelector('.screen');if(ns2)ns2.scrollTop=savedScroll;}
   hideSplash();
   if(S.modal==='add')setTimeout(()=>document.getElementById('sInput')?.focus(),80);
   if(S.modal==='partner')setTimeout(()=>document.getElementById('pInput')?.focus(),80);
