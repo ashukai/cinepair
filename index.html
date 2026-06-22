@@ -273,7 +273,7 @@ let S={
   filter:'all',modal:null,detail:null,mood:null,swiping:false,
   authTab:'login',aLoading:false,aErr:'',aOk:'',
   pq:'',pResult:null,pMsg:'',pName:'Partner',
-  discover:{},dLoading:false,lastSwipe:null,swipeDetail:null,tonightPicks:new Set(),partnerTonightPicks:new Set(),showTonightPicker:false,
+  discover:{},discoverPages:{},dLoading:false,lastSwipe:null,swipeDetail:null,tonightPicks:new Set(),partnerTonightPicks:new Set(),showTonightPicker:false,
   requests:[],incomingRequests:[],userSuggestions:[],
 };
 
@@ -819,25 +819,33 @@ window.openDiscoverDetail=function(id,title,plot,poster,rating,year){
   };
   render();
 };
-window.loadMoreDiscover=async function(sec,page){
+window.loadMoreDiscover=async function(sec){
   const btn=document.getElementById('loadmore-'+sec);
   if(btn){btn.textContent='Loading...';btn.disabled=true;}
-  const urlMap={
+  const page=(S.discoverPages[sec]||1)+1;
+  const staticMap={
     'Best of 2026':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=100&primary_release_year=2026&language=en-US&page=${page}`,
     'Best of 2025':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=500&primary_release_year=2025&language=en-US&page=${page}`,
     'Best of 2024':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=1000&primary_release_year=2024&language=en-US&page=${page}`,
     'Top Drama':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=5000&with_genres=18&language=en-US&page=${page}`,
     'Top Action':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=5000&with_genres=28&language=en-US&page=${page}`,
     'Top Sci-Fi':`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=2000&with_genres=878&language=en-US&page=${page}`,
-    'For You':null,
   };
-  const url=urlMap[sec];if(!url)return;
+  let url=staticMap[sec];
+  // Handle "More Genre" sections dynamically
+  if(!url&&sec.startsWith('More ')){
+    const genre=sec.slice(5);const gid=GENRE_IDS[genre];
+    if(gid)url=`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=1000&with_genres=${gid}&language=en-US&page=${page}`;
+  }
+  if(!url){if(btn){btn.textContent='Load more';btn.disabled=false;}return;}
   try{
+    const myIds=new Set(S.myMovies.map(m=>String(m.movie_id)));
     const r=await fetch(url);const d=await r.json();
-    const newMovies=(d.results||[]).slice(0,10);
+    const newMovies=(d.results||[]).filter(m=>m.poster_path&&!myIds.has(String(m.id)));
     S.discover[sec]=[...(S.discover[sec]||[]),...newMovies];
+    S.discoverPages[sec]=page;
     render();
-  }catch(e){toast('Error loading more');}
+  }catch(e){toast('Error loading more');if(btn){btn.textContent='Load more';btn.disabled=false;}}
 };
 window.addDiscover=async function(id,btnId){
   const btn=document.getElementById(btnId);if(btn){btn.textContent='...';btn.disabled=true;}
@@ -1224,7 +1232,8 @@ function renderDiscover(){
     ${keys.map(sec=>{
       const movies=(S.discover[sec]||[]).filter(m=>!myIds.has(String(m.id))&&m.poster_path);
       if(!movies.length)return'';
-      return`<div class="shead"><span class="stitle">${esc(sec)}</span></div>
+      const canLoadMore=sec!=='For You';
+      return`<div class="shead"><span class="stitle">${esc(sec)}</span>${canLoadMore?`<button id="loadmore-${esc(sec)}" onclick="loadMoreDiscover('${esc(sec)}')" style="font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:DM Sans,sans-serif">Load more</button>`:''}</div>
       <div class="drow">${movies.map(dcard).join('')}</div>`;
     }).join('')}
     ${!keys.length&&!S.dLoading?`<div class="empty"><i class="ti ti-compass"></i><p>Loading recommendations...</p></div>`:''}`;
