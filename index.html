@@ -737,8 +737,47 @@ window.tapPSwipe=function(mid,liked){
 };
 
 // DISCOVER
+const GENRE_IDS={Drama:18,Action:28,'Sci-Fi':878,'Science Fiction':878,Comedy:35,Horror:27,Thriller:53,Romance:10749,Animation:16,Adventure:12,Crime:80,Fantasy:14,Mystery:9648,History:36,War:10752,Music:10402,Family:10751,Western:37,Documentary:99};
+async function buildForYou(){
+  if(!S.myMovies.length)return;
+  const myIds=new Set(S.myMovies.map(m=>String(m.movie_id)));
+  // pick up to 6 random movies to seed recommendations
+  const picks=[...S.myMovies].sort(()=>Math.random()-.5).slice(0,6);
+  const recJsons=await Promise.all(picks.map(p=>
+    fetch(`${TBASE}/movie/${p.movie_id}/recommendations?api_key=${TMDB}&language=en-US`).then(r=>r.json()).catch(()=>({results:[]}))
+  ));
+  const seen=new Set();const forYou=[];
+  for(const d of recJsons){
+    for(const m of(d.results||[])){
+      if(!seen.has(m.id)&&!myIds.has(String(m.id))&&m.poster_path){seen.add(m.id);forYou.push(m);}
+    }
+  }
+  forYou.sort((a,b)=>b.vote_average-a.vote_average);
+  if(forYou.length)S.discover['For You']=forYou.slice(0,20);
+  // Top genre rows based on taste
+  const genreCount={};
+  for(const w of S.myMovies){const g=w.movie?.genre;if(g)genreCount[g]=(genreCount[g]||0)+1;}
+  const topGenres=Object.entries(genreCount).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([g])=>g);
+  for(const genre of topGenres){
+    const gid=GENRE_IDS[genre];if(!gid)continue;
+    const key='More '+genre;if(S.discover[key]?.length)continue;
+    try{
+      const r=await fetch(`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=1000&with_genres=${gid}&language=en-US`);
+      const d=await r.json();
+      const filtered=(d.results||[]).filter(m=>!myIds.has(String(m.id))&&m.poster_path);
+      if(filtered.length)S.discover[key]=filtered.slice(0,20);
+    }catch(e){}
+  }
+}
 async function loadDiscover(){
-  if(S.dLoading)return;S.dLoading=true;
+  if(S.dLoading)return;
+  // On re-visit: refresh For You + render to filter out added movies, but keep static rows cached
+  if(Object.keys(S.discover).length){
+    render();// immediately show filtered state
+    if(S.myMovies.length){buildForYou().then(()=>render());}
+    return;
+  }
+  S.dLoading=true;render();
   try{
     const reqs=[
       fetch(`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=100&primary_release_year=2026&language=en-US`),
@@ -750,19 +789,14 @@ async function loadDiscover(){
     ];
     const jsons=await Promise.all(reqs.map(r=>r.then(x=>x.json())));
     S.discover={
-      'Best of 2026':(jsons[0].results||[]).slice(0,10),
-      'Best of 2025':(jsons[1].results||[]).slice(0,10),
-      'Best of 2024':(jsons[2].results||[]).slice(0,10),
-      'Top Drama':(jsons[3].results||[]).slice(0,10),
-      'Top Action':(jsons[4].results||[]).slice(0,10),
-      'Top Sci-Fi':(jsons[5].results||[]).slice(0,10),
+      'Best of 2026':(jsons[0].results||[]).slice(0,20),
+      'Best of 2025':(jsons[1].results||[]).slice(0,20),
+      'Best of 2024':(jsons[2].results||[]).slice(0,20),
+      'Top Drama':(jsons[3].results||[]).slice(0,20),
+      'Top Action':(jsons[4].results||[]).slice(0,20),
+      'Top Sci-Fi':(jsons[5].results||[]).slice(0,20),
     };
-    if(S.myMovies.length>0){
-      const pick=S.myMovies[Math.floor(Math.random()*Math.min(S.myMovies.length,5))];
-      const r=await fetch(`${TBASE}/movie/${pick.movie_id}/recommendations?api_key=${TMDB}&language=en-US`);
-      const d=await r.json();
-      if(d.results?.length)S.discover['For You']=(d.results||[]).slice(0,10);
-    }
+    await buildForYou();
   }catch(e){console.error(e);}
   S.dLoading=false;render();
 }
@@ -770,7 +804,8 @@ window.openDiscoverDetail=function(id,title,plot,poster,rating,year){
   S.detail={
     movie_id:String(id),
     movie:{id:String(id),title,plot,poster_path:poster||null,imdb_rating:parseFloat(rating)||null,year,genre:null,director:null,runtime:null},
-    watched:false
+    watched:false,
+    fromDiscover:true
   };
   render();
 };
@@ -798,8 +833,7 @@ window.addDiscover=async function(id,btnId){
   const btn=document.getElementById(btnId);if(btn){btn.textContent='...';btn.disabled=true;}
   const full=await fetchDetails(String(id));
   if(full)await addMovie(full);
-  const btn2=document.getElementById(btnId);
-  if(btn2){btn2.textContent=S.myMovies.find(w=>w.movie_id===String(id))?'✓ Added':'+ Add';btn2.className='dadd'+(S.myMovies.find(w=>w.movie_id===String(id))?' added':'');btn2.disabled=false;}
+  render();
 };
 
 // RENDER HELPERS
@@ -885,6 +919,7 @@ function renderDetail(){
       <div class="shacts">
         ${mine?`<button class="btn ${w?'':'gold'}" onclick="toggleWatched('${mid}',${w},event)">${w?'Unmark watched':'Mark as watched'}</button>
         <button class="btn" onclick="removeMovie('${mid}',event)" style="color:var(--red)"><i class="ti ti-trash"></i> Remove</button>`
+        :item.fromDiscover?`<button class="btn gold" style="width:100%;justify-content:center" onclick="S.detail=null;addDiscover('${mid}','')"><i class="ti ti-plus"></i> Add to my list</button>`
         :`<p style="font-size:13px;color:var(--text2)">${esc(S.pName)}'s movie</p>`}
       </div>
     </div>
@@ -1134,23 +1169,32 @@ function renderSwipe(){
 }
 
 function renderDiscover(){
-  const keys=Object.keys(S.discover);
+  const allKeys=Object.keys(S.discover);
+  const myIds=new Set(S.myMovies.map(m=>String(m.movie_id)));
+  // Show "For You" first if it exists, then others
+  const keys=['For You',...allKeys.filter(k=>k!=='For You')].filter(k=>allKeys.includes(k));
+  function dcard(m){
+    const t=esc((m.title||m.name||'').replace(/'/g,"\\'"));
+    const p=esc((m.overview||'').slice(0,200).replace(/'/g,"\\'").replace(/\n/g,' '));
+    const po=esc(m.poster_path||'');
+    const ra=m.vote_average?m.vote_average.toFixed(1):'?';
+    const yr=esc((m.release_date||'').slice(0,4));
+    return`<div class="dcard" onclick="openDiscoverDetail(${m.id},'${t}','${p}','${po}','${ra}','${yr}')">
+      <div class="dposter">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(m.poster_path)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`:'🎬'}</div>
+      <div class="dtitle">${esc(m.title||m.name||'')}</div>
+      <div class="drating">★ ${m.vote_average?m.vote_average.toFixed(1):'?'}</div>
+      <button class="dadd" onclick="event.stopPropagation();addDiscover(${m.id},'')">+ Add</button>
+    </div>`;
+  }
   return`
     <div class="hdr"><div class="logo">Cine<em>Pair</em></div></div>
-    ${S.dLoading&&!keys.length?`<div style="padding:2rem;text-align:center;color:var(--text3)"><div class="spin" style="width:24px;height:24px;margin:0 auto 12px"></div>Loading...</div>`:''}
-    ${keys.map((sec,si)=>`
-      <div class="shead"><span class="stitle">${esc(sec)}</span>
-        <button id="loadmore-${esc(sec)}" onclick="loadMoreDiscover('${esc(sec)}',${2})" style="font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:DM Sans,sans-serif">Load more</button>
-      </div>
-      <div class="drow" id="drow-${esc(sec)}">${(S.discover[sec]||[]).map(m=>{
-        const added=S.myMovies.find(w=>w.movie_id===String(m.id));
-        const bid='db'+m.id;
-        return`<div class="dcard" onclick="openDiscoverDetail(${m.id},'${esc((m.title||m.name||'').replace(/'/g,"\'"))}','${esc((m.overview||'').slice(0,200).replace(/'/g,"\'"))}','${esc(m.poster_path||'')}','${m.vote_average?m.vote_average.toFixed(1):'?'}','${esc((m.release_date||'').slice(0,4))}')">
-          <div class="dposter">${m.poster_path?`<img src="https://image.tmdb.org/t/p/w185${esc(m.poster_path)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`:'🎬'}</div>
-          <div class="dtitle">${esc(m.title||m.name||'')}</div>
-          <div class="drating">★ ${m.vote_average?m.vote_average.toFixed(1):'?'}</div>
-          <button class="dadd${added?' added':''}" id="${bid}" onclick="event.stopPropagation();addDiscover(${m.id},'${bid}')">${added?'✓ Added':'+ Add'}</button>
-        </div>`;}).join('')}</div>`).join('')}
+    ${S.dLoading&&!keys.length?`<div style="padding:2rem;text-align:center;color:var(--text3)"><div class="spin" style="width:24px;height:24px;margin:0 auto 12px"></div>Loading recommendations...</div>`:''}
+    ${keys.map(sec=>{
+      const movies=(S.discover[sec]||[]).filter(m=>!myIds.has(String(m.id))&&m.poster_path);
+      if(!movies.length)return'';
+      return`<div class="shead"><span class="stitle">${esc(sec)}</span></div>
+      <div class="drow">${movies.map(dcard).join('')}</div>`;
+    }).join('')}
     ${!keys.length&&!S.dLoading?`<div class="empty"><i class="ti ti-compass"></i><p>Loading recommendations...</p></div>`:''}`;
 }
 
@@ -1315,7 +1359,7 @@ window.sendRequest=sendRequest;
 window.acceptRequest=acceptRequest;
 window.declineRequest=declineRequest;
 window.onPInput=onPInput;
-window.setTab=function(t){S.tab=t;if(t==='discover'&&!Object.keys(S.discover).length)loadDiscover();render();};
+window.setTab=function(t){S.tab=t;if(t==='discover')loadDiscover();render();};
 window.setFilter=f=>{S.filter=f;render();};
 window.setATab=t=>{S.authTab=t;S.aErr='';S.aOk='';render();};
 window.setPView=v=>{S.pview=v;render();if(S.swiping)setTimeout(attachSwipe,100);};
