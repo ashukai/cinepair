@@ -741,8 +741,13 @@ const GENRE_IDS={Drama:18,Action:28,'Sci-Fi':878,'Science Fiction':878,Comedy:35
 async function buildForYou(){
   if(!S.myMovies.length)return;
   const myIds=new Set(S.myMovies.map(m=>String(m.movie_id)));
-  // pick up to 6 random movies to seed recommendations
-  const picks=[...S.myMovies].sort(()=>Math.random()-.5).slice(0,6);
+  // Watched movies = strongest taste signal; use them first as seeds
+  const watched=S.myMovies.filter(m=>m.watched);
+  const unwatched=S.myMovies.filter(m=>!m.watched);
+  const shuffle=arr=>[...arr].sort(()=>Math.random()-.5);
+  // Pick up to 4 watched + 2 unwatched seeds (prioritise taste signal)
+  const picks=[...shuffle(watched).slice(0,4),...shuffle(unwatched).slice(0,2)];
+  if(!picks.length)return;
   const recJsons=await Promise.all(picks.map(p=>
     fetch(`${TBASE}/movie/${p.movie_id}/recommendations?api_key=${TMDB}&language=en-US`).then(r=>r.json()).catch(()=>({results:[]}))
   ));
@@ -754,13 +759,18 @@ async function buildForYou(){
   }
   forYou.sort((a,b)=>b.vote_average-a.vote_average);
   if(forYou.length)S.discover['For You']=forYou.slice(0,20);
-  // Top genre rows based on taste
+  // Genre rows — weight watched movies 2x in genre count
   const genreCount={};
-  for(const w of S.myMovies){const g=w.movie?.genre;if(g)genreCount[g]=(genreCount[g]||0)+1;}
+  for(const w of S.myMovies){
+    const g=w.movie?.genre;if(!g)continue;
+    genreCount[g]=(genreCount[g]||0)+(w.watched?2:1);
+  }
   const topGenres=Object.entries(genreCount).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([g])=>g);
+  // Reset genre rows so they reflect current taste on each visit
+  for(const key of Object.keys(S.discover)){if(key.startsWith('More '))delete S.discover[key];}
   for(const genre of topGenres){
     const gid=GENRE_IDS[genre];if(!gid)continue;
-    const key='More '+genre;if(S.discover[key]?.length)continue;
+    const key='More '+genre;
     try{
       const r=await fetch(`${TBASE}/discover/movie?api_key=${TMDB}&sort_by=vote_average.desc&vote_count.gte=1000&with_genres=${gid}&language=en-US`);
       const d=await r.json();
@@ -833,6 +843,25 @@ window.addDiscover=async function(id,btnId){
   const btn=document.getElementById(btnId);if(btn){btn.textContent='...';btn.disabled=true;}
   const full=await fetchDetails(String(id));
   if(full)await addMovie(full);
+  render();
+};
+window.addDiscoverWatched=async function(id){
+  S.detail=null;
+  const full=await fetchDetails(String(id));
+  if(!full){toast('Error loading movie');return;}
+  // Add to list then immediately mark as watched
+  const fid=String(full.id);
+  const alreadyIn=S.myMovies.find(w=>w.movie_id===fid);
+  if(!alreadyIn){
+    const{error:me}=await sb.from('movies').upsert({id:fid,title:full.title,year:full.year,director:full.director,genre:full.genre,runtime:full.runtime,imdb_rating:full.imdb_rating,plot:full.plot,poster_path:full.poster_path},{onConflict:'id'});
+    if(me){toast('Error: '+me.message);return;}
+    const{error:we}=await sb.from('watchlist').insert({user_id:S.user.id,movie_id:fid,watched:true});
+    if(we){toast('Error: '+we.message);return;}
+  }else if(!alreadyIn.watched){
+    await sb.from('watchlist').update({watched:true}).eq('user_id',S.user.id).eq('movie_id',fid);
+  }
+  await loadMyMovies();
+  toast(full.title+' marked as watched!');
   render();
 };
 
@@ -917,9 +946,12 @@ function renderDetail(){
         ${m.plot?`<div style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:1rem">${esc(m.plot)}</div>`:''}
       </div>
       <div class="shacts">
-        ${mine?`<button class="btn ${w?'':'gold'}" onclick="toggleWatched('${mid}',${w},event)">${w?'Unmark watched':'Mark as watched'}</button>
+        ${mine?`<button class="btn ${w?'':'gold'}" onclick="toggleWatched('${mid}',${w},event)">${w?'Unmark watched':'✓ Mark as watched'}</button>
         <button class="btn" onclick="removeMovie('${mid}',event)" style="color:var(--red)"><i class="ti ti-trash"></i> Remove</button>`
-        :item.fromDiscover?`<button class="btn gold" style="width:100%;justify-content:center" onclick="S.detail=null;addDiscover('${mid}','')"><i class="ti ti-plus"></i> Add to my list</button>`
+        :item.fromDiscover?`<div style="display:flex;flex-direction:column;gap:8px;width:100%">
+          <button class="btn gold" style="justify-content:center" onclick="S.detail=null;addDiscover('${mid}','')"><i class="ti ti-plus"></i> Add to my list</button>
+          <button class="btn" style="justify-content:center;color:var(--green);border-color:var(--green-border);background:var(--green-dim)" onclick="addDiscoverWatched('${mid}')"><i class="ti ti-eye-check"></i> Already watched it</button>
+        </div>`
         :`<p style="font-size:13px;color:var(--text2)">${esc(S.pName)}'s movie</p>`}
       </div>
     </div>
