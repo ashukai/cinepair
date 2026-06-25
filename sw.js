@@ -1,5 +1,5 @@
-// CinePair Service Worker v14
-const CACHE = 'cinepair-v14';
+// CinePair Service Worker v15
+const CACHE = 'cinepair-v15';
 
 // Pre-cache the app shell + CDN assets on install
 const PRECACHE = [
@@ -37,10 +37,23 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Never intercept navigation requests — Safari PWA throws "Response served by service worker
-  // has redirections" if the SW returns a redirect (e.g. from Cloudflare HTTPS upgrade).
-  // Let the browser handle page navigation natively.
+  // Navigation requests: serve cached index.html directly (never fetch from network).
+  // Serving from cache avoids the Safari PWA "redirect from service worker" error because
+  // the cached response is a clean 200 — no redirects involved. Background-update the cache
+  // separately so the app stays fresh without blocking the response.
   if (e.request.mode === 'navigate') {
+    e.respondWith(
+      caches.open(CACHE).then(cache =>
+        cache.match('/index.html').then(cached => {
+          // Background update — fire and forget, don't return the network response
+          fetch('/index.html').then(res => {
+            if (res.ok) cache.put('/index.html', res);
+          }).catch(() => {});
+          // Always respond with cache (works offline, no redirect error)
+          return cached || fetch(e.request);
+        })
+      )
+    );
     return;
   }
 
