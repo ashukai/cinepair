@@ -1278,8 +1278,9 @@ function renderDiscover(){
     ${keys.map(sec=>{
       const movies=(S.discover[sec]||[]).filter(m=>!myIds.has(String(m.id))&&m.poster_path);
       if(!movies.length)return'';
+      const rowId='drow-'+sec.replace(/\s+/g,'-');
       return`<div class="shead"><span class="stitle">${esc(sec)}</span><button id="loadmore-${esc(sec)}" onclick="loadMoreDiscover('${esc(sec)}')" style="font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:DM Sans,sans-serif">Load more</button></div>
-      <div class="drow">${movies.map(dcard).join('')}</div>`;
+      <div class="drow" id="${rowId}">${movies.map(dcard).join('')}</div>`;
     }).join('')}
     ${!keys.length&&!S.dLoading?`<div class="empty"><i class="ti ti-compass"></i><p>Loading recommendations...</p></div>`:''}`;
 }
@@ -1420,12 +1421,25 @@ function render(){
   const swipeDetailHTML=S.swipeDetail?renderSwipeDetail():'';
   // Preserve scroll position when overlays open/close on same tab
   const prevScreen=document.querySelector('.screen');
-  const savedScroll=(_prevTab===S.tab&&prevScreen)?prevScreen.scrollTop:0;
+  const sameTab=_prevTab===S.tab;
+  const savedScroll=(sameTab&&prevScreen)?prevScreen.scrollTop:0;
+  // Also save horizontal scroll of each discover row
+  const rowScrolls={};
+  if(sameTab&&prevScreen){
+    prevScreen.querySelectorAll('.drow').forEach(el=>{if(el.id)rowScrolls[el.id]=el.scrollLeft;});
+  }
   _prevTab=S.tab;
   // Disable scroll when swiping to prevent touch conflict
   const ns=S.tab==='swipe'&&S.swiping&&!S.modal?'noscroll':'';
   app.innerHTML=`<div class="screen ${ns}">${content}</div>${navHTML}${modal}${detail}${swipeDetailHTML}`;
-  if(savedScroll>0){const ns2=document.querySelector('.screen');if(ns2)ns2.scrollTop=savedScroll;}
+  const ns2=document.querySelector('.screen');
+  if(ns2){
+    if(savedScroll>0)ns2.scrollTop=savedScroll;
+    // Restore horizontal row scrolls
+    Object.entries(rowScrolls).forEach(([id,left])=>{
+      const el=ns2.querySelector('#'+id);if(el&&left>0)el.scrollLeft=left;
+    });
+  }
   hideSplash();
   if(S.modal==='add')setTimeout(()=>document.getElementById('sInput')?.focus(),80);
   if(S.modal==='partner')setTimeout(()=>document.getElementById('pInput')?.focus(),80);
