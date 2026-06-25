@@ -310,7 +310,20 @@ async function signOut(){
 }
 
 // DATA
-async function loadProfile(){if(!S.user)return;const{data}=await sb.from('profiles').select('*').eq('id',S.user.id).single();S.profile=data;await loadAll();}
+async function loadProfile(){
+  if(!S.user)return;
+  try{
+    const{data}=await sb.from('profiles').select('*').eq('id',S.user.id).single();
+    if(data){S.profile=data;try{localStorage.setItem(offlineKey('profile'),JSON.stringify(data));}catch(e){}}
+    await loadAll();
+  }catch(e){
+    // Offline — load all from cache
+    const cp=localStorage.getItem(offlineKey('profile'));
+    if(cp)try{S.profile=JSON.parse(cp);}catch(e2){}
+    const cm=localStorage.getItem(offlineKey('movies'));
+    if(cm)try{S.myMovies=JSON.parse(cm);}catch(e2){}
+  }
+}
 async function loadAll(){await Promise.all([loadMyMovies(),loadPlaylist(),loadRequests()]);}
 
 async function loadRequests(){
@@ -374,7 +387,18 @@ async function onPInput(){
     render();
   },200);
 }
-async function loadMyMovies(){const{data}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',S.user.id).order('added_at',{ascending:false});S.myMovies=data||[];}
+function offlineKey(k){return'cp_'+k+'_'+(S.user?.id||'');}
+async function loadMyMovies(){
+  try{
+    const{data}=await sb.from('watchlist').select('*,movie:movies(*)').eq('user_id',S.user.id).order('added_at',{ascending:false});
+    S.myMovies=data||[];
+    try{localStorage.setItem(offlineKey('movies'),JSON.stringify(S.myMovies));}catch(e){}
+  }catch(e){
+    // Offline — use cached data silently
+    const c=localStorage.getItem(offlineKey('movies'));
+    if(c)try{S.myMovies=JSON.parse(c);}catch(e2){}
+  }
+}
 async function loadPlaylist(){
   const{data}=await sb.from('together_playlists').select('*,owner:profiles!together_playlists_owner_id_fkey(username,id),partner:profiles!together_playlists_partner_id_fkey(username,id)').or(`owner_id.eq.${S.user.id},partner_id.eq.${S.user.id}`).order('created_at',{ascending:false}).limit(1).maybeSingle();
   S.playlist=data;
@@ -1081,7 +1105,9 @@ function renderAuth(){
 function renderMy(){
   const all=S.myMovies;
   const filt=S.filter==='all'?all:S.filter==='watched'?all.filter(w=>w.watched):all.filter(w=>!w.watched);
+  const offline=!navigator.onLine;
   return`
+    ${offline?`<div style="background:var(--surface2);color:var(--text3);font-size:12px;text-align:center;padding:6px;letter-spacing:.3px"><i class="ti ti-wifi-off" style="font-size:13px"></i> Offline — showing saved list</div>`:''}
     <div class="hdr">
       <div class="logo">Cine<em>Pair</em></div>
       <div style="display:flex;align-items:center;gap:8px">
@@ -1490,10 +1516,21 @@ window.doSignUp=()=>{
 
 (async()=>{
   setTimeout(hideSplash,5000);
-  // Show auth screen immediately without waiting for session
   render();
   const{data:{session}}=await sb.auth.getSession();
-  if(session?.user){S.user=session.user;await loadProfile();render();}
+  if(session?.user){
+    S.user=session.user;
+    // Load cached data immediately for instant offline display
+    const uid=session.user.id;
+    const cp=localStorage.getItem('cp_profile_'+uid);
+    const cm=localStorage.getItem('cp_movies_'+uid);
+    if(cp)try{S.profile=JSON.parse(cp);}catch(e){}
+    if(cm)try{S.myMovies=JSON.parse(cm);}catch(e){}
+    if(S.profile||S.myMovies.length)render(); // show cache instantly
+    // Then fetch fresh data from network
+    await loadProfile();
+    render();
+  }
   // Poll for incoming partner requests every 30 seconds
   setInterval(async()=>{
     if(!S.user)return;
