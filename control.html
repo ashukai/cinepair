@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>CinePair · Control room</title>
+<!--
+  The owner's oversight page. It holds NO data: every number comes from an
+  admin_cr_* function that checks is_admin() on the server. The key below is the
+  public anon key already shipped in the app — what protects the data is the
+  server, not this file. Sign in with the owner account; a normal account gets
+  nothing back. Open #demo to see it with made-up data.
+-->
+<style>
+  :root{
+    --bg:#0e0e14; --surface:#16161f; --surface2:#1e1e2a; --line:#262633;
+    --text:#f4f4f7; --text2:#b9b9c6; --text3:#7d7d8c;
+    --gold:#d9a83a; --goldDim:rgba(217,168,58,0.14); --goldLine:rgba(217,168,58,0.35);
+    --green:#49c17e; --red:#e5706b; --blue:#6aa9ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+  /* top bar */
+  .top{position:sticky;top:0;z-index:5;background:rgba(14,14,20,0.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:14px 16px;margin:0 -16px 18px}
+  .brand{font-size:17px;font-weight:700;letter-spacing:-0.3px}
+  .brand b{color:var(--gold)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;margin-right:6px}
+  .dot.live{background:var(--green);box-shadow:0 0 0 3px rgba(73,193,126,0.18)}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:var(--surface2);color:var(--text2);border-radius:9px;
+    padding:7px 12px;font-size:13px;cursor:pointer}
+  .btn:hover{border-color:var(--goldLine);color:var(--text)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .tab{padding:8px 14px;border-radius:10px;font-size:13.5px;cursor:pointer;color:var(--text2);border:1px solid transparent}
+  .tab.on{background:var(--goldDim);color:var(--gold);border-color:var(--goldLine)}
+  .tab .n{display:inline-block;margin-left:6px;background:var(--surface2);border-radius:20px;padding:0 7px;font-size:11px;color:var(--text3)}
+  /* cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .kpi .v{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+  .kpi .l{font-size:12px;color:var(--text3);margin-top:3px}
+  .kpi .sub{font-size:11.5px;color:var(--text2);margin-top:6px}
+  .kpi.lift .v{color:var(--gold)}
+  .sec{font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;color:var(--text3);margin:26px 2px 12px}
+  /* chart */
+  .chart{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .bars{display:flex;align-items:flex-end;gap:3px;height:140px;margin-top:8px}
+  .bars .col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;min-width:0}
+  .bars .b{width:100%;border-radius:3px 3px 0 0;background:var(--goldLine)}
+  .bars .b.b2{background:var(--blue);opacity:.75}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--text2);margin-top:12px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  /* funnel */
+  .fn{display:flex;flex-direction:column;gap:8px}
+  .fn .row{display:flex;align-items:center;gap:12px}
+  .fn .lab{width:150px;font-size:13px;color:var(--text2);flex-shrink:0}
+  .fn .track{flex:1;background:var(--surface2);border-radius:8px;height:26px;overflow:hidden;position:relative}
+  .fn .fill{height:100%;background:linear-gradient(90deg,var(--goldLine),var(--gold));border-radius:8px}
+  .fn .val{position:absolute;right:10px;top:0;line-height:26px;font-size:12.5px;color:var(--text);font-weight:600}
+  .fn .pct{width:46px;text-align:right;font-size:12px;color:var(--text3);flex-shrink:0}
+  /* tables & lists */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--text3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;
+    padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface)}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--text2)}
+  tr:hover td{background:var(--surface2)}
+  .tableWrap{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .pill.g{background:rgba(73,193,126,.14);color:var(--green)}
+  .pill.gold{background:var(--goldDim);color:var(--gold)}
+  .pill.r{background:rgba(229,112,107,.14);color:var(--red)}
+  .pill.n{background:var(--surface2);color:var(--text3)}
+  .ev{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:1px solid var(--line);font-size:13px}
+  .ev .k{min-width:72px;font-weight:600}
+  .ev .t{color:var(--text3);font-size:12px;white-space:nowrap}
+  .ev .d{color:var(--text3);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .muted{color:var(--text3)}
+  .big{font-size:15px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .chip{padding:5px 11px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--text2);
+    font-size:12.5px;cursor:pointer}
+  .chip.on{background:var(--goldDim);border-color:var(--goldLine);color:var(--gold)}
+  .empty{color:var(--text3);text-align:center;padding:40px;font-size:14px}
+  /* login */
+  .login{max-width:360px;margin:12vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .login h1{font-size:20px;margin:0 0 4px;letter-spacing:-0.4px}
+  .login p{color:var(--text3);font-size:13px;margin:0 0 18px}
+  .login input{width:100%;padding:11px 13px;margin-bottom:10px;background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;color:var(--text);font-size:14px}
+  .login .go{width:100%;background:var(--gold);color:#1a1205;border:none;border-radius:10px;padding:12px;
+    font-size:14px;font-weight:700;cursor:pointer}
+  .err{color:var(--red);font-size:13px;margin-bottom:10px;min-height:16px}
+  .demo{display:inline-block;margin-top:16px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Loading…</div></div>
+
+<script>
+const SB_URL = "https://mshcjeibgyhruxddjwxy.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zaGNqZWliZ3locnV4ZGRqd3h5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mzc2NDksImV4cCI6MjA5NTIxMzY0OX0.IOijSeR9eCwaQ687VM8OyuGPvKJSN-Z77QxJuFAlAGs";
+const SESS_KEY = "cp_cr_sess";
+const DEMO = location.hash === "#demo";
+
+/* ---------- session + api ---------- */
+function sess(){ try{ return JSON.parse(localStorage.getItem(SESS_KEY)||"null"); }catch(e){ return null; } }
+function setSess(s){ try{ s?localStorage.setItem(SESS_KEY,JSON.stringify(s)):localStorage.removeItem(SESS_KEY); }catch(e){} }
+
+async function login(email,pass){
+  const r = await fetch(SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",
+    headers:{"apikey":SB_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({email,password:pass})});
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error_description||"Sign-in failed");
+  setSess(await r.json());
+}
+async function refresh(){
+  const s=sess(); if(!s||!s.refresh_token) return false;
+  const r=await fetch(SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",
+    headers:{"apikey":SB_KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({refresh_token:s.refresh_token})});
+  if(!r.ok){ setSess(null); return false; }
+  setSess(await r.json()); return true;
+}
+async function rpc(fn,args){
+  if(DEMO) return demoRpc(fn,args);
+  const call=()=>fetch(SB_URL+"/rest/v1/rpc/"+fn,{method:"POST",
+    headers:{"apikey":SB_KEY,"Authorization":"Bearer "+((sess()||{}).access_token||""),"Content-Type":"application/json"},
+    body:JSON.stringify(args||{})});
+  let r=await call();
+  if(r.status===401){ if(await refresh()) r=await call(); else throw new Error("signed out"); }
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* ---------- demo data (#demo) ---------- */
+function demoRpc(fn,args){
+  const now=Date.now(), iso=(ms)=>new Date(ms).toISOString();
+  if(fn==="is_admin") return Promise.resolve(true);
+  if(fn==="admin_cr_summary") return Promise.resolve([{users:214,online_now:3,active_today:41,active_7d:118,
+    signups_today:5,signups_7d:33,signups_30d:142,paired:76,solo:62,with_titles:171,titles_total:2840,
+    errors_24h:2,error_users_24h:2}]);
+  if(fn==="admin_cr_daily"){ const n=args?.p_days||30, out=[];
+    for(let i=n-1;i>=0;i--){ const base=Math.max(0,Math.round(6-i*0.06+Math.sin(i/3)*3));
+      out.push({day:iso(now-i*864e5).slice(0,10),signups:base,active:base*4+Math.round(Math.random()*8),
+        events:base*40,adds:base*6,swipes:base*22,matches:Math.round(base*1.4),errors:i%9===0?1:0}); }
+    return Promise.resolve(out); }
+  if(fn==="admin_cr_online") return Promise.resolve([
+    {username:"moonlit_owl",view:"/(tabs)/swipe",app_tag:"1.0.1",build:"6b65ed82",since:iso(now-600000),seen_at:iso(now-9000)},
+    {username:"reel_couple",view:"/(tabs)/discover",app_tag:"1.0.1",build:"6b65ed82",since:iso(now-200000),seen_at:iso(now-30000)},
+    {username:"popcorn_pat",view:"/(tabs)/my-list",app_tag:"1.0.1",build:"embedded",since:iso(now-120000),seen_at:iso(now-80000)}]);
+  if(fn==="admin_cr_funnel") return Promise.resolve([
+    {step:1,label:"Signed up",users:214},{step:2,label:"Added a title",users:171},
+    {step:3,label:"Set up swiping",users:138},{step:4,label:"Connected a partner",users:76},
+    {step:5,label:"Swiped",users:121},{step:6,label:"Got a match",users:88},{step:7,label:"Back a 2nd day",users:97}]);
+  if(fn==="admin_cr_users"){ const names=["moonlit_owl","reel_couple","popcorn_pat","indie_jane","noir_sam","binge_bees","ccrowe","late_show"];
+    return Promise.resolve(names.map((u,i)=>({id:"demo-"+i,username:u,email:u+"@example.com",
+      joined:iso(now-(i+1)*3*864e5),last_seen:iso(now-i*7000000),app_tag:"1.0.1",
+      titles:40-i*3,paired:i%2===0,swipes:120-i*11,events_7d:80-i*6,errors_7d:i===3?2:0}))); }
+  if(fn==="admin_cr_screens") return Promise.resolve([
+    {view:"/(tabs)/swipe",opens:980,users:140},{view:"/(tabs)/discover",opens:760,users:128},
+    {view:"/(tabs)/my-list",opens:690,users:150},{view:"/(tabs)/partner",opens:210,users:90},
+    {view:"/(tabs)/profile",opens:150,users:88}]);
+  if(fn==="admin_cr_events"){ const ks=["view","add","swipe","match","watched","pair","signup"];
+    return Promise.resolve(Array.from({length:40},(_,i)=>({id:i,at:iso(now-i*420000),user_id:"demo-"+(i%8),
+      username:["moonlit_owl","reel_couple","popcorn_pat","indie_jane"][i%4],
+      kind:ks[i%ks.length],view:"/(tabs)/swipe",app_tag:"1.0.1",build:"6b65ed82",
+      data:i%6===0?{liked:true,tv:false}:null}))); }
+  if(fn==="admin_cr_errors") return Promise.resolve([
+    {msg:"Cannot read property 'poster_path' of undefined",times:7,users:2,first_at:iso(now-5*864e5),
+     last_at:iso(now-40000000),versions:"1.0.1",views:"/(tabs)/discover",sample:{}}]);
+  return Promise.resolve([]);
+}
+
+/* ---------- helpers ---------- */
+const $=(h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
+const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function ago(t){ if(!t) return "—"; const s=(Date.now()-new Date(t).getTime())/1000;
+  if(s<60) return Math.floor(s)+"s"; if(s<3600) return Math.floor(s/60)+"m";
+  if(s<86400) return Math.floor(s/3600)+"h"; return Math.floor(s/86400)+"d"; }
+function when(t){ if(!t) return "—"; const d=new Date(t);
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"})+" "+d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}); }
+function day(t){ return new Date(t).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+
+const S={ tab:(()=>{ try{ const t=localStorage.getItem("cp_cr_tab"); return ["today","people","screens","activity","bugs"].indexOf(t)>=0?t:"today"; }catch(e){ return "today"; } })(),
+          data:{}, evKind:null, evUser:null, days:30 };
+function setTab(k){ S.tab=k; try{ localStorage.setItem("cp_cr_tab",k); }catch(e){} draw(); window.scrollTo(0,0); if(k==="today") load(); else loadTab(k); }
+
+/* ---------- loaders ---------- */
+let timer=null;
+async function load(){
+  try{
+    const [sum,daily,online,funnel]=await Promise.all([
+      rpc("admin_cr_summary"), rpc("admin_cr_daily",{p_days:S.days}),
+      rpc("admin_cr_online",{p_minutes:15}), rpc("admin_cr_funnel")]);
+    S.data.sum=(sum||[])[0]||{}; S.data.daily=daily||[]; S.data.online=online||[]; S.data.funnel=funnel||[];
+    draw();
+  }catch(e){ if(String(e.message).includes("signed out")) return boot(); console.warn(e); }
+  clearTimeout(timer); if(S.tab==="today" && !DEMO) timer=setTimeout(load,20000);
+}
+async function loadTab(k){
+  try{
+    if(k==="people") S.data.people=await rpc("admin_cr_users");
+    if(k==="screens") S.data.screens=await rpc("admin_cr_screens",{p_days:14});
+    if(k==="activity") S.data.events=await rpc("admin_cr_events",{p_limit:300,p_kind:S.evKind,p_user:S.evUser});
+    if(k==="bugs") S.data.errors=await rpc("admin_cr_errors",{p_days:21});
+    draw();
+  }catch(e){ if(String(e.message).includes("signed out")) return boot(); console.warn(e); }
+}
+
+/* ---------- views ---------- */
+function kpi(v,l,sub,lift){ return `<div class="card kpi ${lift?"lift":""}"><div class="v">${v}</div><div class="l">${l}</div>${sub?`<div class="sub">${sub}</div>`:""}</div>`; }
+
+function todayView(){
+  const s=S.data.sum||{}, d=S.data.daily||[], f=S.data.funnel||[], on=S.data.online||[];
+  const maxA=Math.max(1,...d.map(x=>Math.max(+x.signups,+x.active)));
+  const H=128; // px available for the tallest bar
+  const bars=d.map(x=>`<div class="col" title="${day(x.day)} · ${x.signups} new · ${x.active} active">
+      <div class="b b2" style="height:${Math.round(+x.active/maxA*H)||0}px"></div>
+      <div class="b" style="height:${Math.round(+x.signups/maxA*H)||0}px"></div></div>`).join("");
+  const fmax=Math.max(1,...f.map(x=>+x.users));
+  const base=f.length?+f[0].users:1;
+  const fn=f.map(x=>`<div class="row"><div class="lab">${esc(x.label)}</div>
+      <div class="track"><div class="fill" style="width:${(+x.users/fmax*100)||0}%"></div>
+      <div class="val">${x.users}</div></div>
+      <div class="pct">${base?Math.round(+x.users/base*100):0}%</div></div>`).join("");
+  const onl=on.length? on.map(p=>`<tr><td class="big">${esc(p.username)}</td><td>${esc(p.view||"—")}</td>
+      <td><span class="pill n">${esc(p.app_tag||"?")}</span></td><td class="muted">${ago(p.seen_at)} ago</td></tr>`).join("")
+      : `<tr><td colspan="4" class="empty">Nobody in the app right now.</td></tr>`;
+  return `
+    <div class="grid">
+      ${kpi(s.users??0,"People",`${s.signups_7d??0} new this week`,true)}
+      ${kpi(s.online_now??0,"Online now")}
+      ${kpi(s.active_today??0,"Active today",`${s.active_7d??0} in 7 days`)}
+      ${kpi(s.signups_today??0,"New today",`${s.signups_30d??0} in 30 days`)}
+      ${kpi(s.paired??0,"Paired couples",`${s.solo??0} solo`)}
+      ${kpi(s.with_titles??0,"Built a list",`${s.titles_total??0} titles total`)}
+      ${kpi(s.errors_24h??0,"Errors 24h",`${s.error_users_24h??0} people hit`,)}
+    </div>
+    <div class="sec">Sign-ups &amp; active · last ${S.days} days</div>
+    <div class="chart"><div class="bars">${bars||""}</div>
+      <div class="legend"><span><i style="background:var(--gold)"></i>New sign-ups</span>
+      <span><i style="background:var(--blue)"></i>Active people</span></div></div>
+    <div class="sec">The road a couple takes</div>
+    <div class="chart"><div class="fn">${fn}</div></div>
+    <div class="sec">In the app now</div>
+    <div class="tableWrap"><table><thead><tr><th>Who</th><th>Screen</th><th>Version</th><th>Last ping</th></tr></thead>
+      <tbody>${onl}</tbody></table></div>`;
+}
+
+function peopleView(){
+  const r=S.data.people||[];
+  if(!r.length) return `<div class="empty">No people yet.</div>`;
+  const rows=r.map(p=>`<tr onclick="openUser('${p.id}')" style="cursor:pointer">
+    <td class="big">${esc(p.username)}</td>
+    <td class="muted">${esc(p.email||"")}</td>
+    <td>${day(p.joined)}</td>
+    <td class="muted">${p.last_seen?ago(p.last_seen)+" ago":"—"}</td>
+    <td>${p.titles}</td>
+    <td>${p.paired?'<span class="pill g">paired</span>':'<span class="pill n">solo</span>'}</td>
+    <td>${p.swipes}</td>
+    <td>${+p.errors_7d>0?`<span class="pill r">${p.errors_7d}</span>`:'<span class="muted">0</span>'}</td></tr>`).join("");
+  return `<div class="sec">${r.length} people · newest first · tap a row to see their activity</div>
+    <div class="tableWrap"><table>
+    <thead><tr><th>Who</th><th>Email</th><th>Joined</th><th>Last seen</th><th>Titles</th><th>Pairing</th><th>Swipes</th><th>Err 7d</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+function screensView(){
+  const r=S.data.screens||[];
+  if(!r.length) return `<div class="empty">No screen opens recorded yet.<br><span class="muted">They start arriving once the SQL is run and people open the updated app.</span></div>`;
+  const max=Math.max(1,...r.map(x=>+x.opens));
+  const rows=r.map(x=>`<div class="row"><div class="lab">${esc(x.view)}</div>
+    <div class="track"><div class="fill" style="width:${(+x.opens/max*100)||0}%"></div>
+    <div class="val">${x.opens} · ${x.users} ppl</div></div></div>`).join("");
+  return `<div class="sec">Screens opened · last 14 days</div><div class="chart"><div class="fn">${rows}</div></div>`;
+}
+
+function activityView(){
+  const r=S.data.events||[];
+  const kinds=["view","add","swipe","match","watched","pair","signup","error"];
+  const chips=`<div class="chip ${!S.evKind?"on":""}" onclick="setKind(null)">all</div>`+
+    kinds.map(k=>`<div class="chip ${S.evKind===k?"on":""}" onclick="setKind('${k}')">${k}</div>`).join("");
+  const userChip=S.evUser?`<div class="chip on" onclick="setUser(null)">✕ one person</div>`:"";
+  const feed=r.length? r.map(e=>{
+      const d=e.data?Object.entries(e.data).map(([k,v])=>`${k}:${esc(JSON.stringify(v)).replace(/"/g,"")}`).join(" "):"";
+      const col=e.kind==="error"?"var(--red)":e.kind==="match"?"var(--green)":"var(--gold)";
+      return `<div class="ev"><span class="k" style="color:${col}">${esc(e.kind)}</span>
+        <span class="t">${when(e.at)}</span><b style="color:var(--text2);min-width:90px">${esc(e.username)}</b>
+        <span class="muted" style="min-width:60px">${esc(e.view||"")}</span>
+        <span class="d">${d}</span></div>`; }).join("")
+    : `<div class="empty">No events yet.</div>`;
+  return `<div class="filters">${chips}${userChip}</div><div class="card">${feed}</div>`;
+}
+
+function bugsView(){
+  const r=S.data.errors||[];
+  if(!r.length) return `<div class="empty">🎉 No errors in the last 3 weeks.</div>`;
+  const rows=r.map(e=>`<div class="card" style="margin-bottom:10px">
+    <div style="display:flex;gap:10px;align-items:baseline">
+      <b style="color:var(--red);flex:1">${esc(e.msg)}</b>
+      <span class="pill r">${e.times}×</span><span class="pill n">${e.users} ppl</span></div>
+    <div class="muted" style="font-size:12px;margin-top:6px">
+      ${esc(e.views||"?")} · ${esc(e.versions||"?")} · first ${ago(e.first_at)} ago → last ${ago(e.last_at)} ago</div></div>`).join("");
+  return `<div class="sec">${r.length} distinct errors · last 21 days</div>${rows}`;
+}
+
+/* ---------- shell ---------- */
+function draw(){
+  const s=S.data.sum||{};
+  const tabN={bugs:s.errors_24h||0};
+  const views={today:todayView,people:peopleView,screens:screensView,activity:activityView,bugs:bugsView};
+  const body=(views[S.tab]||todayView)();
+  const tab=(k,l)=>`<div class="tab ${S.tab===k?"on":""}" onclick="setTab('${k}')">${l}${tabN[k]?`<span class="n">${tabN[k]}</span>`:""}</div>`;
+  document.getElementById("app").innerHTML=`
+    <div class="wrap">
+      <div class="top">
+        <span class="brand">Cine<b>Pair</b></span>
+        <span class="muted" style="font-size:13px"><span class="dot ${s.online_now?"live":""}"></span>${s.online_now||0} online</span>
+        <span class="spacer"></span>
+        ${DEMO?'<span class="pill gold">demo data</span>':`<button class="btn" onclick="load();loadTab(S.tab)">↻ Refresh</button>
+        <button class="btn" onclick="signout()">Sign out</button>`}
+      </div>
+      <div class="tabs">${tab("today","Today")}${tab("people","People")}${tab("screens","Screens")}${tab("activity","Activity")}${tab("bugs","Bugs")}</div>
+      ${body}
+    </div>`;
+}
+function setKind(k){ S.evKind=k; loadTab("activity"); }
+function setUser(u){ S.evUser=u; loadTab("activity"); }
+function openUser(id){ S.evUser=id; S.evKind=null; setTab("activity"); }
+function signout(){ setSess(null); boot(); }
+
+/* ---------- boot / login ---------- */
+function loginScreen(msg){
+  document.getElementById("app").innerHTML=`<div class="login">
+    <h1>Control room</h1><p>Only the owner account sees anything here.</p>
+    <div class="err" id="er">${msg||""}</div>
+    <input id="em" type="email" placeholder="Owner email" autocomplete="username">
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="go" onclick="doLogin()">Sign in</button>
+    <a class="demo" href="#demo" onclick="setTimeout(()=>location.reload(),0)">See it with made-up data →</a>
+  </div>`;
+  const pw=document.getElementById("pw"); pw.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+}
+async function doLogin(){
+  const em=document.getElementById("em").value.trim(), pw=document.getElementById("pw").value;
+  const er=document.getElementById("er"); er.textContent="Checking…";
+  try{ await login(em,pw); boot(); }catch(e){ er.textContent=e.message||"Sign-in failed"; }
+}
+async function boot(){
+  if(DEMO){ draw(); load(); return; }
+  if(!sess()){ loginScreen(); return; }
+  document.getElementById("app").innerHTML=`<div class="empty">Loading…</div>`;
+  let ok=false;
+  try{ ok=await rpc("is_admin"); }catch(e){ if(await refresh()){ try{ ok=await rpc("is_admin"); }catch(_){}} }
+  if(!ok){ setSess(null); loginScreen("That account isn't an owner. Use the admin login."); return; }
+  draw(); load();
+}
+boot();
+</script>
+</body>
+</html>
