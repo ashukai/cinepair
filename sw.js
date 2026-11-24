@@ -1,5 +1,5 @@
 // CinePair Service Worker v15
-const CACHE = 'cinepair-v15';
+const CACHE = 'cinepair-v16';
 
 // Pre-cache the app shell + CDN assets on install
 const PRECACHE = [
