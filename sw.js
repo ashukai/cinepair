@@ -1,5 +1,5 @@
-// CinePair Service Worker v15
-const CACHE = 'cinepair-v16';
+// CinePair Service Worker v17
+const CACHE = 'cinepair-v17';
 
 // Pre-cache the app shell + CDN assets on install
 const PRECACHE = [
@@ -37,23 +37,32 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Navigation requests: serve cached index.html directly (never fetch from network).
-  // Serving from cache avoids the Safari PWA "redirect from service worker" error because
-  // the cached response is a clean 200 — no redirects involved. Background-update the cache
-  // separately so the app stays fresh without blocking the response.
+  // Navigation requests.
   if (e.request.mode === 'navigate') {
-    e.respondWith(
-      caches.open(CACHE).then(cache =>
-        cache.match('/index.html').then(cached => {
-          // Background update — fire and forget, don't return the network response
-          fetch('/index.html').then(res => {
-            if (res.ok) cache.put('/index.html', res);
-          }).catch(() => {});
-          // Always respond with cache (works offline, no redirect error)
-          return cached || fetch(e.request);
-        })
-      )
-    );
+    const p = url.pathname;
+    const isRoot = url.origin === self.location.origin && (p === '/' || p === '/index.html');
+
+    // ONLY the landing/root is served from the cached index.html (clean 200, works
+    // offline, avoids the Safari PWA redirect error). Every other page — control.html,
+    // join, app.html, privacy, terms — must load ITSELF, so standalone pages are never
+    // shadowed by the landing. Those go network-first with a cache fallback.
+    if (isRoot) {
+      e.respondWith(
+        caches.open(CACHE).then(cache =>
+          cache.match('/index.html').then(cached => {
+            fetch('/index.html').then(res => { if (res.ok) cache.put('/index.html', res); }).catch(() => {});
+            return cached || fetch(e.request);
+          })
+        )
+      );
+    } else {
+      e.respondWith(
+        fetch(e.request).then(res => {
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+          return res;
+        }).catch(() => caches.match(e.request).then(r => r || fetch(e.request)))
+      );
+    }
     return;
   }
 
